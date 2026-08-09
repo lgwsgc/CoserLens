@@ -8,18 +8,19 @@ import threading
 import time
 from pathlib import Path
 
+import config
 
-REPO_ROOT = Path(r"D:\AI-Projects\youtube_pipeline")
-DEFAULT_OUTPUT_ROOT = REPO_ROOT / "enhanced_outputs"
+REPO_ROOT = config.REPO_ROOT
+DEFAULT_OUTPUT_ROOT = config.ENHANCED_OUTPUT_ROOT
 DEFAULT_DOWNLOAD_DIR = (
     REPO_ROOT
     / "TikTokDownloader"
     / "Volume"
     / "UID1099148033790384_ytb_发布作品"
 )
-REALESRGAN_DIR = REPO_ROOT / "tools" / "realesrgan-ncnn-vulkan-20220424-windows"
-REALESRGAN_EXE = REALESRGAN_DIR / "realesrgan-ncnn-vulkan.exe"
-MODEL_DIR = REALESRGAN_DIR / "models"
+REALESRGAN_DIR = config.REALESRGAN_DIR
+REALESRGAN_EXE = config.REALESRGAN_EXE
+MODEL_DIR = config.REALESRGAN_MODEL_DIR
 
 
 def safe_stem(path: Path) -> str:
@@ -30,7 +31,7 @@ def find_executable(name: str) -> str:
     found = shutil.which(name)
     if found:
         return found
-    common = Path(r"D:\Program Files (x86)\ffmpeg\bin") / f"{name}.exe"
+    common = config.FFMPEG_DIR / f"{name}.exe"
     if common.exists():
         return str(common)
     raise FileNotFoundError(f"Cannot find {name}. Make sure it is in PATH.")

@@ -35,16 +35,18 @@ from PySide6.QtWidgets import (
 
 import download_ui
 import pipeline_ui
+import config
+import translation
 
 
-APP_TITLE = "CoserLens Pipeline"
-SINGLE_INSTANCE_PORT = 17864
-THUMB_DIR = pipeline_ui.REPO_ROOT / ".pipeline_thumbnails"
-LOG_DIR = pipeline_ui.REPO_ROOT / ".pipeline_logs"
-DESKTOP_STATE_PATH = pipeline_ui.REPO_ROOT / ".pipeline_desktop_qt_state.json"
-FFMPEG = Path(r"D:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe")
-BATCH_DOWNLOAD_LIMIT = 100
-APP_ICON_PATH = pipeline_ui.REPO_ROOT / "assets" / "coserlens_logo.svg"
+APP_TITLE = config.APP_TITLE
+SINGLE_INSTANCE_PORT = config.SINGLE_INSTANCE_PORT
+THUMB_DIR = config.THUMB_DIR
+LOG_DIR = config.LOG_DIR
+DESKTOP_STATE_PATH = config.DESKTOP_STATE_PATH
+FFMPEG = Path(config.FFMPEG)
+BATCH_DOWNLOAD_LIMIT = config.BATCH_DOWNLOAD_LIMIT
+APP_ICON_PATH = config.APP_ICON_PATH
 
 
 STYLE = """
@@ -749,48 +751,13 @@ class MainWindow(QMainWindow):
         return self.translate_title_terms(text)
 
     def translate_character_name(self, text):
-        return {
-            "Gu Qinghan": "\u987e\u6e05\u5bd2",
-            "Yin Ziping": "\u6bb7\u7d2b\u840d",
-            "Gongsun Li": "\u516c\u5b59\u79bb",
-            "Canaan": "\u8fe6\u5357",
-            "Luna": "\u9732\u5a1c",
-            "Changli": "\u957f\u79bb",
-            "Xiao Xun'er": "\u8427\u85b0\u513f",
-            "Ahri": "\u963f\u72f8",
-            "Yu Linglong": "\u7389\u73b2\u73d1",
-            "Da Qiao": "\u5927\u4e54",
-            "Dolia": "\u6735\u8389\u4e9a",
-            "Frieren": "\u8299\u8389\u83b2",
-            "Mai Sakurajima": "\u6a31\u5c9b\u9ebb\u8863",
-            "Sparkle": "\u82b1\u706b",
-            "Silver Wolf": "\u94f6\u72fc",
-            "Asuma Toki": "\u98de\u9e1f\u9a6c\u65f6",
-            "Kisaki": "\u5983\u54b2",
-            "Ice Princess": "\u51b0\u516c\u4e3b",
-            "Sheng Cai'er": "\u5723\u91c7\u513f",
-        }.get(text, text)
+        return translation.character_en_to_cn(text)
 
     def translate_source_name(self, text):
-        return {
-            "Honor of Kings": "\u738b\u8005\u8363\u8000",
-            "Naraka: Bladepoint": "\u6c38\u52ab\u65e0\u95f4",
-            "Wuthering Waves": "\u9e23\u6f6e",
-            "Donghua": "\u56fd\u6f2b",
-            "Battle Through the Heavens": "\u6597\u7834\u82cd\u7a79",
-            "Frieren: Beyond Journey's End": "\u846c\u9001\u7684\u8299\u8389\u83b2",
-            "Rascal Does Not Dream of Bunny Girl Senpai": "\u9752\u6625\u732a\u5934\u5c11\u5e74\u4e0d\u4f1a\u68a6\u5230\u5154\u5973\u90ce\u5b66\u59d0",
-            "Honkai: Star Rail": "\u5d29\u574f\uff1a\u661f\u7a79\u94c1\u9053",
-            "Genshin Impact": "\u539f\u795e",
-            "League of Legends": "\u82f1\u96c4\u8054\u76df",
-            "Zenless Zone Zero": "\u7edd\u533a\u96f6",
-            "Blue Archive": "\u851a\u84dd\u6863\u6848",
-            "Azur Lane": "\u78a7\u84dd\u822a\u7ebf",
-            "Arknights: Endfield": "\u660e\u65e5\u65b9\u821f\uff1a\u7ec8\u672b\u5730",
-            "Reverse: 1999": "\u91cd\u8fd4\u672a\u6765\uff1a1999",
-            "Ye Luoli": "\u53f6\u7f57\u4e3d",
-            "Throne of Seal": "\u795e\u5370\u738b\u5ea7",
-        }.get(text, text)
+        # "Donghua" 是泛称，不在 catalog 里，单独处理
+        if text == "Donghua":
+            return "国漫"
+        return translation.source_en_to_cn(text)
 
     def translate_hashtag(self, tag):
         clean = tag.lstrip("#")
@@ -869,24 +836,12 @@ class MainWindow(QMainWindow):
         translated = text
         for source, target in replacements.items():
             translated = translated.replace(source, target)
-        for source, target in {
-            "Gu Qinghan": "\u987e\u6e05\u5bd2",
-            "Yin Ziping": "\u6bb7\u7d2b\u840d",
-            "Gongsun Li": "\u516c\u5b59\u79bb",
-            "Canaan": "\u8fe6\u5357",
-            "Luna": "\u9732\u5a1c",
-            "Changli": "\u957f\u79bb",
-            "Xiao Xun'er": "\u8427\u85b0\u513f",
-            "Ahri": "\u963f\u72f8",
-            "Yu Linglong": "\u7389\u73b2\u73d1",
-            "Da Qiao": "\u5927\u4e54",
-            "Dolia": "\u6735\u8389\u4e9a",
-            "Frieren": "\u8299\u8389\u83b2",
-            "Mai Sakurajima": "\u6a31\u5c9b\u9ebb\u8863",
-            "Sparkle": "\u82b1\u706b",
-            "Silver Wolf": "\u94f6\u72fc",
-        }.items():
-            translated = translated.replace(source, target)
+        # 角色名替换：从 catalog 动态获取，不再硬编码
+        for char in translation.all_characters():
+            en = char.get("character_en", "")
+            cn = char.get("character_cn", "")
+            if en and cn:
+                translated = translated.replace(en, cn)
         return translated
 
     def refresh_local_note(self):
@@ -1261,23 +1216,6 @@ class MainWindow(QMainWindow):
 
         return asyncio.run(runner())
 
-    def monitor_batch_progress(self, output_root, before_dirs, started_at, stop_event):
-        last_count = -1
-        heartbeat = 0
-        while not stop_event.wait(5):
-            new_files = self.batch_new_files(output_root, before_dirs, started_at)
-            count = len(new_files)
-            heartbeat += 5
-            if count != last_count or heartbeat >= 30:
-                heartbeat = 0
-                last_count = count
-                elapsed = int(time.time() - started_at)
-                self.log_queue.put(f"Batch still running ({elapsed}s). New mp4 files detected: {count}")
-                if new_files:
-                    latest = new_files[0]
-                    self.log_queue.put(f"Latest file: {latest.name}")
-                    self.log_queue.put(f"Output folder: {latest.parent}")
-
     def normalize_douyin_batch_source(self, source):
         text = source.strip()
         if "v.douyin.com" not in text and "iesdouyin.com/share/user" not in text:
@@ -1306,51 +1244,6 @@ class MainWindow(QMainWindow):
             if folder not in before_dirs or modified >= started_at:
                 files.append(video)
         return sorted(files, key=lambda path: path.stat().st_mtime, reverse=True)
-
-    def run_tiktok_downloader_batch(self):
-        env = os.environ.copy()
-        env["PYTHONIOENCODING"] = "utf-8"
-        process = subprocess.Popen(
-            [str(download_ui.YTB_PYTHON), "main.py"],
-            cwd=str(download_ui.TIKTOK_DOWNLOADER),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=env,
-        )
-        assert process.stdout is not None
-        for line in process.stdout:
-            text = line.strip()
-            if text:
-                self.log_queue.put(text)
-                count_patterns = [
-                    r"\u5171\u63d0\u53d6\u5230\s*(\d+)",
-                    r"\u7b5b\u9009\u5904\u7406\u540e\u4f5c\u54c1\u6570\u91cf[:\uff1a]?\s*(\d+)",
-                ]
-                for pattern in count_patterns:
-                    count_match = re.search(pattern, text)
-                    if count_match:
-                        self.log_queue.put(f"Batch total reported by TikTokDownloader: {count_match.group(1)}")
-                        break
-                if "开始监听剪贴板" in text or "Clipboard" in text:
-                    process.terminate()
-                    raise RuntimeError("TikTokDownloader entered clipboard monitor mode; batch command was aborted.")
-        code = process.wait()
-        if code:
-            raise RuntimeError(f"TikTokDownloader exited with code {code}")
-
-    def video_dirs_snapshot(self, root):
-        if not root.exists():
-            return {}
-        folders = {}
-        for video in root.rglob("*.mp4"):
-            if video.is_file():
-                folder = video.parent
-                folders[folder] = max(folders.get(folder, 0), video.stat().st_mtime)
-        return folders
 
     def update_download_button(self):
         if self.download_mode.currentIndex() == 0:

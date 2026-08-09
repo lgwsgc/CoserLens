@@ -10,13 +10,13 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
+import config
 
-
-REPO_ROOT = Path(r"D:\AI-Projects\youtube_pipeline")
-TIKTOK_DOWNLOADER = REPO_ROOT / "TikTokDownloader"
-SETTINGS_PATH = TIKTOK_DOWNLOADER / "Volume" / "settings.json"
-OUTPUT_ROOT = REPO_ROOT / "download_ui_outputs"
-YTB_PYTHON = Path(r"D:\anaconda3\envs\ytb\python.exe")
+REPO_ROOT = config.REPO_ROOT
+TIKTOK_DOWNLOADER = config.TIKTOK_DOWNLOADER
+SETTINGS_PATH = config.TIKTOK_SETTINGS_PATH
+OUTPUT_ROOT = config.DOWNLOAD_OUTPUT_ROOT
+YTB_PYTHON = config.YTB_PYTHON
 
 sys.path.insert(0, str(TIKTOK_DOWNLOADER))
 
@@ -29,6 +29,13 @@ JOBS: dict[str, dict] = {}
 
 
 class QuietLogger:
+    """TikTokDownloader 日志拦截器：屏蔽 info/warning，但保留 error 日志"""
+
+    def __init__(self):
+        import logging
+
+        self._logger = logging.getLogger("tiktok_downloader")
+
     def info(self, *args, **kwargs):
         pass
 
@@ -36,7 +43,7 @@ class QuietLogger:
         pass
 
     def error(self, *args, **kwargs):
-        pass
+        self._logger.error("TikTokDownloader 错误: %s", args[0] if args else kwargs)
 
 
 async def no_wait():

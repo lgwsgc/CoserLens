@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -13,22 +14,20 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import cosplay_metadata_analyzer
+import config
 
-
-REPO_ROOT = Path(r"D:\AI-Projects\youtube_pipeline")
-VIDEO_DIRS = [
-    REPO_ROOT / "video",
-    REPO_ROOT / "download_ui_outputs",
-    REPO_ROOT / "enhanced_outputs",
-]
-STATE_PATH = REPO_ROOT / "pipeline_state.json"
-CHROME_PROFILE = REPO_ROOT / ".codex_chrome_youtube_profile"
-CHROME_DEBUG_URL = "http://127.0.0.1:9222"
-CHANNEL_ID = "UCZczM9s_ppC1spTRCE2oo8A"
-PORT = 7863
+REPO_ROOT = config.REPO_ROOT
+VIDEO_DIRS = config.VIDEO_DIRS
+STATE_PATH = config.STATE_PATH
+CHROME_PROFILE = config.CHROME_PROFILE
+CHROME_DEBUG_URL = config.CHROME_DEBUG_URL
+CHANNEL_ID = config.CHANNEL_ID
+PORT = config.API_PORT
 
 STATE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
+
+logger = logging.getLogger(__name__)
 
 
 CHARACTER_RULES = [
@@ -62,71 +61,33 @@ CHARACTER_RULES = [
         "source_patterns": ["永劫无间", "naraka"],
         "source": "Naraka: Bladepoint",
         "title": "Canaan Cosplay Looks Unreal in Real Life",
-        "tags": ["#Canaan", "#GameCosplay", "#Cosplay", "#shorts"],
+        "tags": ["#Canaan", "#NarakaBladepoint", "#Cosplay", "#shorts"],
     },
     {
         "patterns": ["露娜", "luna"],
         "character": "Luna",
         "source_patterns": ["王者荣耀", "honor of kings"],
-        "source": "",
-        "title": "Luna Looks Unreal in Real Life",
-        "tags": ["#Luna", "#Cosplay", "#Cosplayer", "#shorts"],
+        "source": "Honor of Kings",
+        "title": "Luna Cosplay Looks Unreal in Real Life",
+        "tags": ["#Luna", "#HonorOfKings", "#Cosplay", "#shorts"],
+    },
+    {
+        "patterns": ["殷紫萍", "yin ziping", "yinziping"],
+        "character": "Yin Ziping",
+        "source_patterns": ["永劫无间", "naraka"],
+        "source": "Naraka: Bladepoint",
+        "title": "Yin Ziping Cosplay Looks Unreal in Real Life",
+        "tags": ["#YinZiping", "#NarakaBladepoint", "#Cosplay", "#shorts"],
+    },
+    {
+        "patterns": ["长离", "changli"],
+        "character": "Changli",
+        "source_patterns": ["鸣潮", "wuthering waves"],
+        "source": "Wuthering Waves",
+        "title": "Changli Cosplay Looks Unreal in Real Life",
+        "tags": ["#Changli", "#WutheringWaves", "#Cosplay", "#shorts"],
     },
 ]
-
-
-CHARACTER_RULES.extend(
-    [
-        {
-            "patterns": ["\u987e\u6e05\u5bd2", "gu qinghan", "guqinghan"],
-            "character": "Gu Qinghan",
-            "source_patterns": ["\u6c38\u52ab\u65e0\u95f4", "naraka"],
-            "source": "Naraka: Bladepoint",
-            "title": "Gu Qinghan Cosplay Looks Unreal in Real Life",
-            "tags": ["#GuQinghan", "#NarakaBladepoint", "#Cosplay", "#shorts"],
-        },
-        {
-            "patterns": ["\u6bb7\u7d2b\u840d", "yin ziping", "yinziping"],
-            "character": "Yin Ziping",
-            "source_patterns": ["\u6c38\u52ab\u65e0\u95f4", "naraka"],
-            "source": "Naraka: Bladepoint",
-            "title": "Yin Ziping Cosplay Looks Unreal in Real Life",
-            "tags": ["#YinZiping", "#NarakaBladepoint", "#Cosplay", "#shorts"],
-        },
-        {
-            "patterns": ["\u516c\u5b59\u79bb", "gongsun li", "gongsunli"],
-            "character": "Gongsun Li",
-            "source_patterns": ["\u738b\u8005\u8363\u8000", "honor of kings"],
-            "source": "Honor of Kings",
-            "title": "Gongsun Li Cosplay Brings the Character to Life",
-            "tags": ["#GongsunLi", "#HonorOfKings", "#Cosplay", "#shorts"],
-        },
-        {
-            "patterns": ["\u8fe6\u5357", "canaan"],
-            "character": "Canaan",
-            "source_patterns": ["\u6c38\u52ab\u65e0\u95f4", "naraka"],
-            "source": "Naraka: Bladepoint",
-            "title": "Canaan Cosplay Looks Unreal in Real Life",
-            "tags": ["#Canaan", "#NarakaBladepoint", "#Cosplay", "#shorts"],
-        },
-        {
-            "patterns": ["\u9732\u5a1c", "luna"],
-            "character": "Luna",
-            "source_patterns": ["\u738b\u8005\u8363\u8000", "honor of kings"],
-            "source": "Honor of Kings",
-            "title": "Luna Cosplay Looks Unreal in Real Life",
-            "tags": ["#Luna", "#HonorOfKings", "#Cosplay", "#shorts"],
-        },
-        {
-            "patterns": ["\u957f\u79bb", "changli"],
-            "character": "Changli",
-            "source_patterns": ["\u9e23\u6f6e", "wuthering waves"],
-            "source": "Wuthering Waves",
-            "title": "Changli Cosplay Looks Unreal in Real Life",
-            "tags": ["#Changli", "#WutheringWaves", "#Cosplay", "#shorts"],
-        },
-    ]
-)
 
 
 CAPTION_TRANSLATIONS = {
@@ -720,8 +681,8 @@ def draft_metadata(path: Path, override: dict | None = None, allow_online: bool 
         if override:
             metadata.update({k: v for k, v in override.items() if k in ("title", "description")})
         return metadata
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("元数据分析失败，使用回退逻辑 (%s): %s", path.name, exc)
 
     text = clean_filename_text(path)
     rule = find_rule(context["search_text"])
@@ -902,17 +863,23 @@ def import_playwright():
     except ImportError as exc:
         raise RuntimeError(
             "Python Playwright is not installed. Run: "
-            r"D:\anaconda3\envs\ytb\python.exe -m pip install playwright"
+            f"{config.YTB_PYTHON} -m pip install playwright"
         ) from exc
     return sync_playwright
 
 
-def first_visible(locator, timeout=30000):
+# ── YouTube 上传超时常量 (毫秒) ─────────────────────────
+TIMEOUT_SHORT = 12000       # 控件点击超时
+TIMEOUT_MEDIUM = 30000      # 页面元素可见性等待
+TIMEOUT_LONG = 60000        # YouTube Studio 页面加载/处理等待
+
+
+def first_visible(locator, timeout=TIMEOUT_MEDIUM):
     locator.first.wait_for(state="visible", timeout=timeout)
     return locator.first
 
 
-def click_first_available(locators: list, timeout=12000) -> None:
+def click_first_available(locators: list, timeout=TIMEOUT_SHORT) -> None:
     last_error = None
     for locator in locators:
         try:
@@ -924,7 +891,7 @@ def click_first_available(locators: list, timeout=12000) -> None:
     raise RuntimeError(f"Could not click expected YouTube control: {last_error}")
 
 
-def wait_for_studio_ready(page, job: dict, timeout=60000) -> None:
+def wait_for_studio_ready(page, job: dict, timeout=TIMEOUT_LONG) -> None:
     deadline = time.time() + timeout / 1000
     last_url = ""
     while time.time() < deadline:

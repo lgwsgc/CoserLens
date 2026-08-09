@@ -1,10 +1,12 @@
 import hashlib
 import json
+import logging
 import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CATALOG_PATH = SCRIPT_DIR / "cosplay_catalog.json"
@@ -12,7 +14,13 @@ CACHE_DIR = SCRIPT_DIR.parent / ".pipeline_analysis_cache"
 _CATALOG_CACHE: dict | None = None
 
 BASE_HASHTAGS = ["#Cosplay", "#Cosplayer", "#shorts"]
-MAX_HASHTAGS = 8
+MAX_HASHTAGS = 8  # YouTube 标签上限，超过会被截断
+
+# 置信度阈值：角色识别分数判定
+CONFIDENCE_HIGH = 0.82   # 中文名完全匹配 → 高置信度
+CONFIDENCE_MEDIUM = 0.68  # 别名/partial 匹配 → 中等置信度
+CONFIDENCE_CAP = 0.85     # 置信度上限（不过度自信）
+CONFIDENCE_THRESHOLD = 0.75  # 低于此值不信任识别结果，触发在线搜索
 
 NOISY_CAPTION_TERMS = [
     "回复",
@@ -203,21 +211,21 @@ def score_character(entry: dict, haystack: str, compact: str, tags: set[str]) ->
     for alias in entry.get("aliases", []):
         if match_alias(alias, haystack, compact, tags):
             if normalize_hashtag(alias) in tags:
-                score = max(score, 0.82)
+                score = max(score, CONFIDENCE_HIGH)      # 标签完全匹配
             else:
-                score = max(score, 0.68)
+                score = max(score, CONFIDENCE_MEDIUM)     # 别名匹配
             evidence.append(f"character clue: {alias}")
             break
     for alias in entry.get("source_aliases", []):
         if match_alias(alias, haystack, compact, tags):
-            score += 0.2
+            score += 0.2  # 作品来源匹配加分
             evidence.append(f"source clue: {alias}")
             break
     if entry.get("character_cn") and normalize_hashtag(entry["character_cn"]) in tags:
-        score += 0.12
+        score += 0.12  # 中文名标签加分
     if "cos" in haystack or "cosplay" in haystack or "cos" in tags:
-        score += 0.05
-    return min(score, 0.98), evidence
+        score += 0.05  # cosplay 关键词加分
+    return min(score, CONFIDENCE_CAP), evidence
 
 
 def score_source(entry: dict, haystack: str, compact: str, tags: set[str]) -> tuple[float, list[str]]:
@@ -225,7 +233,7 @@ def score_source(entry: dict, haystack: str, compact: str, tags: set[str]) -> tu
     evidence = []
     for alias in entry.get("aliases", []):
         if match_alias(alias, haystack, compact, tags):
-            score = 0.68
+            score = CONFIDENCE_MEDIUM
             evidence.append(f"source clue: {alias}")
             break
     if score and ("cos" in haystack or "cosplay" in haystack or "cos" in tags):
@@ -284,7 +292,7 @@ def build_title(result: dict, scene: dict, moment: str = "", seed: str = "") -> 
     if moment in MOMENT_TITLE_HOOKS:
         title = MOMENT_TITLE_HOOKS[moment].format(character=character or "Cosplayer")
         return title[:100].rstrip(" |")
-    if character and result.get("confidence", 0) >= 0.75:
+    if character and result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
         if kind == "transformation":
             title = stable_pick(
                 [
@@ -369,7 +377,7 @@ def build_description(result: dict, scene: dict, moment: str, tags: list[str]) -
     character = result.get("character")
     source = result.get("source")
     lines = []
-    if character and result.get("confidence", 0) >= 0.75:
+    if character and result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
         if scene["kind"] == "transformation" and source:
             lines.append(
                 f"One touch of the mirror, and {character} suddenly feels real. "
@@ -400,7 +408,7 @@ def build_description(result: dict, scene: dict, moment: str, tags: list[str]) -
         lines.append("A real-life cosplay short filmed in a cinematic style.")
     if moment:
         lines.append(f"Moment: {moment}")
-    if character and result.get("confidence", 0) >= 0.75:
+    if character and result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
         lines.append(f"Character: {character}")
     if source:
         lines.append(f"Source: {source}")
@@ -433,7 +441,7 @@ def best_local_match(context: dict) -> dict:
                 "evidence": evidence,
                 "match_type": "character",
             }
-    if best["confidence"] >= 0.75:
+    if best["confidence"] >= CONFIDENCE_THRESHOLD:
         return best
 
     source_best = {"confidence": 0.0, "evidence": []}
@@ -473,7 +481,8 @@ def web_search_snippet(query: str, timeout: int = 8) -> str:
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             html = response.read().decode("utf-8", errors="ignore")
-    except Exception:
+    except Exception as exc:
+        logger.warning("在线搜索失败 (query=%s): %s", query, exc)
         return ""
     text = re.sub(r"<script.*?</script>", " ", html, flags=re.S | re.I)
     text = re.sub(r"<style.*?</style>", " ", text, flags=re.S | re.I)
@@ -497,7 +506,7 @@ def online_candidate(context: dict) -> dict:
             }
             candidate = best_local_match(checked_context)
             if candidate.get("confidence", 0.0) > best.get("confidence", 0.0):
-                candidate["confidence"] = min(candidate["confidence"], 0.78)
+                candidate["confidence"] = min(candidate["confidence"], 0.78)  # 在线结果置信度上限低于本地
                 candidate["evidence"] = dedupe(candidate.get("evidence", []) + [f"web search checked: {term}"])
                 best = candidate
             elif best["confidence"] == 0:
@@ -515,7 +524,7 @@ def analyze_context(context: dict, allow_online: bool = False) -> dict:
     result.setdefault("confidence", 0.0)
     result.setdefault("evidence", [])
     result["evidence"] = dedupe(result["evidence"] + scene.get("evidence", []))
-    if allow_online and result["confidence"] < 0.75:
+    if allow_online and result["confidence"] < CONFIDENCE_THRESHOLD:
         web_result = online_candidate(context)
         if web_result.get("confidence", 0.0) > result.get("confidence", 0.0):
             result = web_result
