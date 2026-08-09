@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoserLens Pipeline</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --panel: #fff;
+      --line: #d9dee7;
+      --text: #1f2937;
+      --muted: #667085;
+      --accent: #0f766e;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    h1 { margin: 0; font-size: 18px; font-weight: 650; }
+    main {
+      display: grid;
+      grid-template-columns: 420px minmax(520px, 1fr);
+      gap: 16px;
+      padding: 16px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 100px;
+    }
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .panel-head h2 { margin: 0; font-size: 15px; }
+    .left-body { height: calc(100vh - 106px); overflow: auto; }
+    .item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf0f4;
+      cursor: pointer;
+    }
+    .item:hover, .item.active { background: #eef7f5; }
+    .item-title { font-size: 13px; font-weight: 650; line-height: 1.35; word-break: break-word; }
+    .item-meta { color: var(--muted); font-size: 12px; margin-top: 5px; }
+    .work {
+      display: grid;
+      grid-template-columns: 340px minmax(360px, 1fr);
+      gap: 14px;
+      padding: 14px;
+    }
+    video {
+      width: 100%;
+      max-height: 620px;
+      background: #111;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 12px 0 6px;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      font: 14px/1.45 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      outline: none;
+      background: #fbfcfe;
+      color: var(--text);
+    }
+    textarea { min-height: 176px; resize: vertical; }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .12);
+    }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button.secondary {
+      color: var(--text);
+      background: #f2f4f7;
+      border: 1px solid var(--line);
+    }
+    button.danger { background: var(--danger); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .path {
+      font: 12px/1.45 Consolas, monospace;
+      color: var(--muted);
+      word-break: break-all;
+      padding: 10px;
+      background: #fbfcfe;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .hint { font-size: 12px; color: var(--muted); line-height: 1.45; }
+    pre {
+      height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 6px;
+      padding: 10px;
+      font: 12px/1.45 Consolas, monospace;
+    }
+    .empty { padding: 24px; color: var(--muted); }
+    @media (max-width: 980px) {
+      main, .work { grid-template-columns: 1fr; }
+      .left-body { height: 360px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CoserLens Pipeline</h1>
+    <div class="row" style="margin:0">
+      <button class="secondary" id="openChrome">打开受控 Chrome</button>
+      <button class="secondary" id="refresh">刷新视频</button>
+    </div>
+  </header>
+  <main>
+    <section>
+      <div class="panel-head">
+        <h2>本地视频</h2>
+        <span class="hint" id="count">0</span>
+      </div>
+      <div class="left-body" id="items"></div>
+    </section>
+    <section>
+      <div class="panel-head">
+        <h2>标题 / 说明 / 上传</h2>
+        <span class="hint" id="selectedStatus">未选择</span>
+      </div>
+      <div class="work" id="work">
+        <div>
+          <video id="preview" controls></video>
+          <label>文件路径</label>
+          <div class="path" id="path">-</div>
+        </div>
+        <div>
+          <label>英文标题</label>
+          <input id="title" maxlength="100" />
+          <label>视频说明</label>
+          <textarea id="description"></textarea>
+          <label>公开范围</label>
+          <select id="privacy">
+            <option value="public">公开</option>
+            <option value="unlisted">不公开列出</option>
+            <option value="private">私享</option>
+          </select>
+          <div class="row">
+            <button id="saveMeta">保存文案</button>
+            <button class="secondary" id="regen">重新生成</button>
+            <button class="secondary" id="deepAnalyze">Deep Analyze</button>
+            <button class="danger" id="upload">上传到 YouTube</button>
+          </div>
+          <p class="hint">
+            文件名只用于提取角色/作品信息，不会直接作为 YouTube 标题。公开视频说明里不会写 Unknown。
+          </p>
+          <label>上传日志</label>
+          <pre id="log"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    let items = [];
+    let selected = null;
+    let polling = null;
+
+    const $ = id => document.getElementById(id);
+
+    function fmtBytes(n) {
+      if (!n) return "-";
+      const units = ["B", "KB", "MB", "GB"];
+      let value = n, idx = 0;
+      while (value >= 1024 && idx < units.length - 1) { value /= 1024; idx++; }
+      return value.toFixed(idx ? 1 : 0) + " " + units[idx];
+    }
+
+    async function api(path, options) {
+      const res = await fetch(path, options);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function renderList() {
+      $("count").textContent = items.length + " 个";
+      const root = $("items");
+      if (!items.length) {
+        root.innerHTML = '<div class="empty">没有找到 mp4 文件。</div>';
+        return;
+      }
+      root.innerHTML = "";
+      for (const item of items) {
+        const div = document.createElement("div");
+        div.className = "item" + (selected && selected.id === item.id ? " active" : "");
+        div.innerHTML = `
+          <div class="item-title">${item.title || item.filename}</div>
+          <div class="item-meta">${fmtBytes(item.size)} · ${item.modified_text}</div>
+          <div class="item-meta">${item.relative_path}</div>
+        `;
+        div.onclick = () => selectItem(item.id);
+        root.appendChild(div);
+      }
+    }
+
+    function selectItem(id) {
+      selected = items.find(x => x.id === id);
+      renderList();
+      $("selectedStatus").textContent = selected.filename;
+      $("preview").src = "/media?id=" + encodeURIComponent(selected.id);
+      $("path").textContent = selected.path;
+      $("title").value = selected.title;
+      $("description").value = selected.description;
+      $("log").textContent = "";
+    }
+
+    async function loadItems() {
+      const data = await api("/api/videos");
+      items = data.items;
+      renderList();
+      if (!selected && items.length) selectItem(items[0].id);
+      if (selected) {
+        const refreshed = items.find(x => x.id === selected.id);
+        if (refreshed) selectItem(refreshed.id);
+      }
+    }
+
+    async function saveMeta() {
+      if (!selected) return;
+      await api("/api/metadata", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          id: selected.id,
+          title: $("title").value.trim(),
+          description: $("description").value.trim()
+        })
+      });
+      await loadItems();
+    }
+
+    async function regenerate() {
+      if (!selected) return;
+      const data = await api("/api/regenerate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({id: selected.id})
+      });
+      $("title").value = data.title;
+      $("description").value = data.description;
+    }
+
+    async function deepAnalyze() {
+      if (!selected) return;
+      $("log").textContent = "Analyzing weak clues and cached web evidence...\n";
+      const data = await api("/api/regenerate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({id: selected.id, online: true})
+      });
+      $("title").value = data.title;
+      $("description").value = data.description;
+      if (data.analysis) {
+        const evidence = (data.analysis.evidence || []).join("; ") || "-";
+        $("log").textContent += `Character: ${data.analysis.character || "-"}\n`;
+        $("log").textContent += `Source: ${data.analysis.source || "-"}\n`;
+        $("log").textContent += `Confidence: ${Math.round((data.analysis.confidence || 0) * 100)}%\n`;
+        $("log").textContent += `Scene: ${data.analysis.scene || "-"}\n`;
+        $("log").textContent += `Evidence: ${evidence}\n`;
+      }
+      $("log").textContent += "Analysis draft generated.\n";
+    }
+
+    async function upload() {
+      if (!selected) return;
+      await saveMeta();
+      $("upload").disabled = true;
+      $("log").textContent = "创建上传任务...\n";
+      try {
+        const data = await api("/api/upload", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            id: selected.id,
+            title: $("title").value.trim(),
+            description: $("description").value.trim(),
+            privacy: $("privacy").value
+          })
+        });
+        pollJob(data.job_id);
+      } catch (err) {
+        $("log").textContent += err.message + "\n";
+        $("upload").disabled = false;
+      }
+    }
+
+    async function pollJob(jobId) {
+      clearInterval(polling);
+      polling = setInterval(async () => {
+        const job = await api("/api/job?id=" + encodeURIComponent(jobId));
+        $("log").textContent = (job.log || []).join("\n");
+        $("log").scrollTop = $("log").scrollHeight;
+        if (job.status === "done" || job.status === "error") {
+          clearInterval(polling);
+          $("upload").disabled = false;
+          await loadItems();
+        }
+      }, 1000);
+    }
+
+    $("refresh").onclick = loadItems;
+    $("saveMeta").onclick = saveMeta;
+    $("regen").onclick = regenerate;
+    $("deepAnalyze").onclick = deepAnalyze;
+    $("upload").onclick = upload;
+    $("openChrome").onclick = async () => {
+      const data = await api("/api/chrome", {method: "POST"});
+      $("log").textContent = data.message;
+    };
+
+    loadItems();
+  </script>
+</body>
+</html>

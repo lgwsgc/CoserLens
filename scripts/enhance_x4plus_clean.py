@@ -291,12 +291,158 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
+def resolve_input(args) -> Path:
+    """解析输入视频路径（位置参数 > --input-video > 默认最新文件）。"""
+    selected = args.input_video_option or args.input_video
+    if selected:
+        return Path(selected).expanduser().resolve()
+    return default_input_video()
 
-    selected_input = args.input_video_option or args.input_video
-    input_video = Path(selected_input).expanduser().resolve() if selected_input else default_input_video()
+
+def prepare_job_dirs(input_video: Path, args) -> dict:
+    """创建输出目录结构，返回路径字典。"""
+    output_root = Path(args.output_root).expanduser().resolve()
+    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    job_dir = output_root / f"{safe_stem(input_video)}_x4plus_clean_{stamp}"
+    frames_small = job_dir / f"frames_{args.base_width}x{args.base_height}"
+    frames_ai = job_dir / "frames_x4plus_4x"
+    job_dir.mkdir(parents=True, exist_ok=True)
+    frames_small.mkdir(parents=True, exist_ok=True)
+    frames_ai.mkdir(parents=True, exist_ok=True)
+    return {
+        "job_dir": job_dir,
+        "frames_small": frames_small,
+        "frames_ai": frames_ai,
+        "log_path": job_dir / "run.log",
+        "output_video": job_dir / f"{safe_stem(input_video)}_x4plus-clean_{args.base_width}x{args.base_height}_to_4x_h265.mp4",
+        "compare_video": job_dir / f"{safe_stem(input_video)}_compare_left-original_right-x4plus-clean.mp4",
+    }
+
+
+def extract_frames(ffmpeg: str, input_video: Path, frames_small: Path,
+                   args, log_path: Path) -> int:
+    """用 FFmpeg 将视频解帧为缩小尺寸的 PNG 序列，返回帧数。"""
+    if count_pngs(frames_small) == 0:
+        require_free_space(frames_small.parent, args.min_free_gb, log_path)
+        write_step("Extracting downscaled frames", log_path)
+        run_command(
+            [
+                ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+                "-i", str(input_video),
+                "-vf", f"scale={args.base_width}:{args.base_height}:flags=lanczos",
+                str(frames_small / "%08d.png"),
+            ],
+            log_path,
+        )
+    small_count = count_pngs(frames_small)
+    write_step(f"Extracted frames: {small_count}", log_path)
+    if small_count == 0:
+        raise RuntimeError("No frames extracted.")
+    return small_count
+
+
+def upscale_frames(frames_small: Path, frames_ai: Path,
+                   small_count: int, args, log_path: Path) -> int:
+    """用 Real-ESRGAN 对帧做 4x 超分辨率，返回帧数。"""
+    if count_pngs(frames_ai) != small_count:
+        for file in frames_ai.glob("*.png"):
+            file.unlink()
+        require_free_space(frames_ai.parent, args.min_free_gb, log_path)
+        write_step("Running Real-ESRGAN x4plus native 4x", log_path)
+        run_command(
+            [
+                str(REALESRGAN_EXE),
+                "-i", str(frames_small),
+                "-o", str(frames_ai),
+                "-n", "realesrgan-x4plus",
+                "-s", "4",
+                "-t", str(args.tile_size),
+                "-m", str(MODEL_DIR),
+                "-g", str(args.gpu_id),
+                "-j", "1:1:1",
+                "-f", "png",
+            ],
+            log_path,
+            progress_dir=frames_ai,
+            progress_total=small_count,
+            progress_label="AI upscale",
+            progress_interval=args.progress_interval,
+            min_free_gb=args.min_free_gb,
+            free_space_path=frames_ai.parent,
+        )
+    ai_count = count_pngs(frames_ai)
+    write_step(f"AI frames: {ai_count}", log_path)
+    if ai_count != small_count:
+        raise RuntimeError(f"Frame count mismatch. Extracted {small_count}, AI output {ai_count}.")
+    return ai_count
+
+
+def encode_enhanced_video(ffmpeg: str, frames_ai: Path, input_video: Path,
+                          output_video: Path, fps_text: str, args, log_path: Path) -> None:
+    """将 AI 增强帧编码为 H.265 视频（带原始音轨）。"""
+    require_free_space(output_video.parent, args.min_free_gb, log_path)
+    write_step("Encoding enhanced video", log_path)
+    run_command(
+        [
+            ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+            "-framerate", fps_text,
+            "-i", str(frames_ai / "%08d.png"),
+            "-i", str(input_video),
+            "-map", "0:v:0",
+            "-map", "1:a?",
+            "-c:v", "hevc_nvenc",
+            "-preset", "p7",
+            "-tune", "hq",
+            "-rc", "vbr",
+            "-cq", str(args.cq),
+            "-b:v", args.bitrate,
+            "-maxrate", args.maxrate,
+            "-bufsize", "96M",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "copy",
+            "-shortest",
+            str(output_video),
+        ],
+        log_path,
+    )
+
+
+def encode_comparison_video(ffmpeg: str, input_video: Path,
+                            output_video: Path, compare_video: Path, log_path: Path) -> None:
+    """编码左右对比视频（原始 vs 增强）。"""
+    require_free_space(compare_video.parent, 20.0, log_path)
+    write_step("Encoding comparison video", log_path)
+    run_command(
+        [
+            ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+            "-i", str(input_video),
+            "-i", str(output_video),
+            "-filter_complex",
+            "[0:v]scale=1080:1920:flags=lanczos[left];"
+            "[1:v]scale=1080:1920:flags=lanczos[right];"
+            "[left][right]hstack=inputs=2",
+            "-map", "0:a?",
+            "-c:v", "hevc_nvenc",
+            "-preset", "p7",
+            "-tune", "hq",
+            "-rc", "vbr",
+            "-cq", "18",
+            "-b:v", "24M",
+            "-maxrate", "40M",
+            "-bufsize", "80M",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "copy",
+            "-shortest",
+            str(compare_video),
+        ],
+        log_path,
+    )
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+
+    input_video = resolve_input(args)
     if not input_video.exists():
         raise FileNotFoundError(f"Input video not found: {input_video}")
     if not REALESRGAN_EXE.exists():
@@ -308,199 +454,46 @@ def main() -> int:
     except FileNotFoundError:
         ffprobe = str(Path(ffmpeg).with_name("ffprobe.exe"))
 
-    output_root = Path(args.output_root).expanduser().resolve()
-    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    job_dir = output_root / f"{safe_stem(input_video)}_x4plus_clean_{stamp}"
-    frames_small = job_dir / f"frames_{args.base_width}x{args.base_height}"
-    frames_ai = job_dir / "frames_x4plus_4x"
-    job_dir.mkdir(parents=True, exist_ok=True)
-    frames_small.mkdir(parents=True, exist_ok=True)
-    frames_ai.mkdir(parents=True, exist_ok=True)
-
-    log_path = job_dir / "run.log"
-    output_video = job_dir / f"{safe_stem(input_video)}_x4plus-clean_{args.base_width}x{args.base_height}_to_4x_h265.mp4"
-    compare_video = job_dir / f"{safe_stem(input_video)}_compare_left-original_right-x4plus-clean.mp4"
+    paths = prepare_job_dirs(input_video, args)
+    log_path = paths["log_path"]
+    frames_small = paths["frames_small"]
+    frames_ai = paths["frames_ai"]
 
     fps = ffprobe_fps(ffprobe, input_video)
     fps_text = format_fps(fps)
 
     write_step(f"Input: {input_video}", log_path)
-    write_step(f"Output directory: {job_dir}", log_path)
+    write_step(f"Output directory: {paths['job_dir']}", log_path)
     write_step(f"Detected FPS: {fps_text}", log_path)
     write_step(f"GPU ID: {args.gpu_id}", log_path)
-    require_free_space(job_dir, args.min_free_gb, log_path)
+    require_free_space(paths["job_dir"], args.min_free_gb, log_path)
 
     if not args.keep_existing_frames:
         for folder in (frames_small, frames_ai):
             for file in folder.glob("*.png"):
                 file.unlink()
 
-    if count_pngs(frames_small) == 0:
-        require_free_space(job_dir, args.min_free_gb, log_path)
-        write_step("Extracting downscaled frames", log_path)
-        run_command(
-            [
-                ffmpeg,
-                "-y",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-i",
-                str(input_video),
-                "-vf",
-                f"scale={args.base_width}:{args.base_height}:flags=lanczos",
-                str(frames_small / "%08d.png"),
-            ],
-            log_path,
-        )
-    small_count = count_pngs(frames_small)
-    write_step(f"Extracted frames: {small_count}", log_path)
-    if small_count == 0:
-        raise RuntimeError("No frames extracted.")
-
-    if count_pngs(frames_ai) != small_count:
-        for file in frames_ai.glob("*.png"):
-            file.unlink()
-        require_free_space(job_dir, args.min_free_gb, log_path)
-        write_step("Running Real-ESRGAN x4plus native 4x", log_path)
-        run_command(
-            [
-                str(REALESRGAN_EXE),
-                "-i",
-                str(frames_small),
-                "-o",
-                str(frames_ai),
-                "-n",
-                "realesrgan-x4plus",
-                "-s",
-                "4",
-                "-t",
-                str(args.tile_size),
-                "-m",
-                str(MODEL_DIR),
-                "-g",
-                str(args.gpu_id),
-                "-j",
-                "1:1:1",
-                "-f",
-                "png",
-            ],
-            log_path,
-            progress_dir=frames_ai,
-            progress_total=small_count,
-            progress_label="AI upscale",
-            progress_interval=args.progress_interval,
-            min_free_gb=args.min_free_gb,
-            free_space_path=job_dir,
-        )
-    ai_count = count_pngs(frames_ai)
-    write_step(f"AI frames: {ai_count}", log_path)
-    if ai_count != small_count:
-        raise RuntimeError(f"Frame count mismatch. Extracted {small_count}, AI output {ai_count}.")
+    small_count = extract_frames(ffmpeg, input_video, frames_small, args, log_path)
+    upscale_frames(frames_small, frames_ai, small_count, args, log_path)
 
     if not args.keep_frames:
         remove_dir_if_exists(frames_small, log_path, "downscaled frames")
 
-    require_free_space(job_dir, args.min_free_gb, log_path)
-    write_step("Encoding enhanced video", log_path)
-    run_command(
-        [
-            ffmpeg,
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-framerate",
-            fps_text,
-            "-i",
-            str(frames_ai / "%08d.png"),
-            "-i",
-            str(input_video),
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a?",
-            "-c:v",
-            "hevc_nvenc",
-            "-preset",
-            "p7",
-            "-tune",
-            "hq",
-            "-rc",
-            "vbr",
-            "-cq",
-            str(args.cq),
-            "-b:v",
-            args.bitrate,
-            "-maxrate",
-            args.maxrate,
-            "-bufsize",
-            "96M",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "copy",
-            "-shortest",
-            str(output_video),
-        ],
-        log_path,
-    )
-
-    require_free_space(job_dir, args.min_free_gb, log_path)
-    write_step("Encoding comparison video", log_path)
-    run_command(
-        [
-            ffmpeg,
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(input_video),
-            "-i",
-            str(output_video),
-            "-filter_complex",
-            "[0:v]scale=1080:1920:flags=lanczos[left];"
-            "[1:v]scale=1080:1920:flags=lanczos[right];"
-            "[left][right]hstack=inputs=2",
-            "-map",
-            "0:a?",
-            "-c:v",
-            "hevc_nvenc",
-            "-preset",
-            "p7",
-            "-tune",
-            "hq",
-            "-rc",
-            "vbr",
-            "-cq",
-            "18",
-            "-b:v",
-            "24M",
-            "-maxrate",
-            "40M",
-            "-bufsize",
-            "80M",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "copy",
-            "-shortest",
-            str(compare_video),
-        ],
-        log_path,
-    )
+    encode_enhanced_video(ffmpeg, frames_ai, input_video,
+                          paths["output_video"], fps_text, args, log_path)
+    encode_comparison_video(ffmpeg, input_video,
+                            paths["output_video"], paths["compare_video"], log_path)
 
     write_step("Done", log_path)
     if not args.keep_frames:
         remove_dir_if_exists(frames_ai, log_path, "AI frames")
 
     print()
-    print(f"Enhanced video: {output_video}")
-    print(f"Comparison video: {compare_video}")
+    print(f"Enhanced video: {paths['output_video']}")
+    print(f"Comparison video: {paths['compare_video']}")
     print(f"Log: {log_path}")
     if args.keep_frames:
-        print(f"Intermediate frames kept in: {job_dir}")
+        print(f"Intermediate frames kept in: {paths['job_dir']}")
     else:
         print("Intermediate frames deleted after successful encoding.")
     return 0

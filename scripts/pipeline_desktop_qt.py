@@ -321,24 +321,38 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(16, 14, 16, 16)
         root.setSpacing(12)
 
+        self._build_header(root)
+        self._build_scope_label(root)
+
+        splitter = QSplitter(Qt.Horizontal)
+        root.addWidget(splitter, 1)
+
+        self._build_left_panel(splitter)
+        self._build_middle_panel(splitter)
+        self._build_right_panel(splitter)
+
+        splitter.setSizes([360, 520, 560])
+        self.setCentralWidget(central)
+
+    def _build_header(self, root):
+        """顶部工具栏：Logo、标题、操作按钮、搜索框。"""
         header_frame = QFrame()
         header_frame.setObjectName("HeaderBar")
         header_frame.setMinimumHeight(66)
         header = QHBoxLayout(header_frame)
         header.setContentsMargins(16, 10, 16, 10)
         header.setSpacing(11)
+
         logo = QLabel()
         logo.setObjectName("LogoMark")
         logo.setFixedSize(42, 42)
         if APP_ICON_PATH.exists():
             logo_pixmap = QPixmap(str(APP_ICON_PATH)).scaled(
-                42,
-                42,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
+                42, 42, Qt.KeepAspectRatio, Qt.SmoothTransformation,
             )
             logo.setPixmap(logo_pixmap)
         header.addWidget(logo)
+
         title_block = QVBoxLayout()
         title_block.setContentsMargins(0, 0, 0, 0)
         title_block.setSpacing(1)
@@ -372,14 +386,15 @@ class MainWindow(QMainWindow):
         header.addWidget(note)
         root.addWidget(header_frame)
 
+    def _build_scope_label(self, root):
+        """当前作用域标签（显示文件夹路径）。"""
         self.scope_label = self.muted_label("")
         self.scope_label.setObjectName("Scope")
         self.scope_label.setWordWrap(True)
         root.addWidget(self.scope_label)
 
-        splitter = QSplitter(Qt.Horizontal)
-        root.addWidget(splitter, 1)
-
+    def _build_left_panel(self, splitter):
+        """左面板：视频列表 + 下载区域。"""
         left = self.panel()
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(12, 12, 12, 12)
@@ -388,6 +403,7 @@ class MainWindow(QMainWindow):
         left_splitter = QSplitter(Qt.Vertical)
         left_layout.addWidget(left_splitter, 1)
 
+        # ── 视频列表 ──
         batch_box = QWidget()
         batch_layout = QVBoxLayout(batch_box)
         batch_layout.setContentsMargins(0, 0, 0, 0)
@@ -400,6 +416,7 @@ class MainWindow(QMainWindow):
         batch_layout.addWidget(self.list_widget, 1)
         left_splitter.addWidget(batch_box)
 
+        # ── 下载区域 ──
         download_box = QWidget()
         download_layout = QVBoxLayout(download_box)
         download_layout.setContentsMargins(0, 0, 0, 0)
@@ -426,12 +443,15 @@ class MainWindow(QMainWindow):
         self.download_button.clicked.connect(self.start_downloads)
         download_layout.addWidget(self.download_button)
         left_splitter.addWidget(download_box)
+
         left_splitter.setCollapsible(0, False)
         left_splitter.setCollapsible(1, False)
         left_splitter.setHandleWidth(10)
         left_splitter.setSizes([620, 180])
         splitter.addWidget(left)
 
+    def _build_middle_panel(self, splitter):
+        """中间面板：视频预览 + 文件信息 + 打开操作。"""
         middle = self.panel()
         middle_layout = QVBoxLayout(middle)
         middle_layout.setContentsMargins(14, 14, 14, 14)
@@ -447,6 +467,7 @@ class MainWindow(QMainWindow):
             "background:#101828;color:#d6e4f0;border:1px solid #202f46;border-radius:8px;"
         )
         middle_layout.addWidget(self.preview, 1)
+
         preview_buttons = QHBoxLayout()
         play_button = QPushButton("Play Video")
         play_button.clicked.connect(self.open_video)
@@ -460,6 +481,8 @@ class MainWindow(QMainWindow):
         middle_layout.addLayout(preview_buttons)
         splitter.addWidget(middle)
 
+    def _build_right_panel(self, splitter):
+        """右面板：元数据编辑 + 上传控制 + 运行日志。"""
         right = self.panel()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(14, 14, 14, 14)
@@ -468,6 +491,7 @@ class MainWindow(QMainWindow):
         right_splitter = QSplitter(Qt.Vertical)
         right_layout.addWidget(right_splitter, 1)
 
+        # ── 元数据编辑区 ──
         meta_box = QWidget()
         meta_layout = QVBoxLayout(meta_box)
         meta_layout.setContentsMargins(0, 0, 0, 0)
@@ -484,7 +508,7 @@ class MainWindow(QMainWindow):
         self.description_edit.setMinimumHeight(120)
         self.description_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         meta_layout.addWidget(self.description_edit, 3)
-        self.local_note = self.muted_label("\u4e2d\u6587\u53c2\u8003\uff1a-")
+        self.local_note = self.muted_label("中文参考：-")
         self.local_note.setObjectName("LocalNote")
         self.local_note.setWordWrap(True)
         self.local_note.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -494,6 +518,7 @@ class MainWindow(QMainWindow):
         self.title_edit.textChanged.connect(self.refresh_local_note)
         self.description_edit.textChanged.connect(self.refresh_local_note)
 
+        # ── 上传控制按钮 ──
         controls = QHBoxLayout()
         self.privacy = QComboBox()
         self.privacy.addItems(["public", "unlisted", "private"])
@@ -522,6 +547,7 @@ class MainWindow(QMainWindow):
         meta_layout.addWidget(hint)
         right_splitter.addWidget(meta_box)
 
+        # ── 运行日志 ──
         log_box = QWidget()
         log_layout = QVBoxLayout(log_box)
         log_layout.setContentsMargins(0, 0, 0, 0)
@@ -532,6 +558,7 @@ class MainWindow(QMainWindow):
         self.log.setReadOnly(True)
         log_layout.addWidget(self.log, 1)
         right_splitter.addWidget(log_box)
+
         right_splitter.setCollapsible(0, False)
         right_splitter.setCollapsible(1, False)
         right_splitter.setHandleWidth(10)
@@ -539,9 +566,6 @@ class MainWindow(QMainWindow):
         right_splitter.setStretchFactor(1, 5)
         right_splitter.setSizes([360, 460])
         splitter.addWidget(right)
-
-        splitter.setSizes([360, 520, 560])
-        self.setCentralWidget(central)
 
     def panel(self):
         frame = QFrame()
