@@ -37,7 +37,9 @@ import download_ui
 import logging_config
 import pipeline_ui
 import config
+import theme
 import translation
+import video_card
 
 
 APP_TITLE = config.APP_TITLE
@@ -50,184 +52,10 @@ BATCH_DOWNLOAD_LIMIT = config.BATCH_DOWNLOAD_LIMIT
 APP_ICON_PATH = config.APP_ICON_PATH
 
 
-STYLE = """
-QMainWindow, QWidget {
-    background: #f3f6f8;
-    color: #182230;
-    font-family: "Segoe UI", "Microsoft YaHei";
-    font-size: 13px;
-}
-QFrame#HeaderBar {
-    background: #ffffff;
-    border: 1px solid #d7dee8;
-    border-radius: 8px;
-}
-QFrame#Panel {
-    background: #ffffff;
-    border: 1px solid #d7dee8;
-    border-radius: 8px;
-}
-QLabel#LogoMark {
-    background: transparent;
-}
-QLabel#Title {
-    color: #101828;
-    font-size: 23px;
-    font-weight: 700;
-}
-QLabel#Subtitle {
-    color: #667085;
-    font-size: 12px;
-}
-QLabel#SectionTitle {
-    color: #111827;
-    font-size: 15px;
-    font-weight: 700;
-}
-QLabel#Muted {
-    color: #697586;
-}
-QLabel#Scope {
-    color: #475467;
-    background: #ffffff;
-    border: 1px solid #dfe5ed;
-    border-radius: 6px;
-    padding: 8px 11px;
-}
-QLabel#LocalNote {
-    color: #475467;
-    background: #f8fafc;
-    border: 1px solid #dfe5ed;
-    border-radius: 6px;
-    padding: 9px 10px;
-}
-QPushButton {
-    background: #0f766e;
-    color: #ffffff;
-    border: 0;
-    border-radius: 6px;
-    padding: 9px 14px;
-    font-weight: 600;
-}
-QPushButton:hover {
-    background: #115e59;
-}
-QPushButton:disabled {
-    background: #98a2b3;
-}
-QPushButton#Secondary {
-    background: #344054;
-}
-QPushButton#Secondary:hover {
-    background: #293548;
-}
-QPushButton#Danger {
-    background: #c9342c;
-}
-QPushButton#Danger:hover {
-    background: #a52a24;
-}
-QPushButton#ToolbarButton {
-    background: #ffffff;
-    color: #344054;
-    border: 1px solid #cfd8e3;
-}
-QPushButton#ToolbarButton:hover {
-    background: #eef8f6;
-    border-color: #8bb9b4;
-    color: #0f5f59;
-}
-QLineEdit, QTextEdit, QComboBox {
-    background: #ffffff;
-    color: #182230;
-    border: 1px solid #cfd8e3;
-    border-radius: 6px;
-    padding: 8px;
-    selection-background-color: #dbeafe;
-    selection-color: #182230;
-}
-QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-    border: 1px solid #0f766e;
-    background: #ffffff;
-}
-QTextEdit#InputText {
-    background: #ffffff;
-    color: #172033;
-    selection-background-color: #dbeafe;
-    selection-color: #172033;
-}
-QTextEdit#Description {
-    background: #ffffff;
-    color: #172033;
-    selection-background-color: #dbeafe;
-    selection-color: #172033;
-}
-QTextEdit#Log {
-    background: #101828;
-    color: #d6e4f0;
-    border: 1px solid #202f46;
-    font-family: Consolas;
-    selection-background-color: #334155;
-    selection-color: #ffffff;
-}
-QListWidget {
-    background: #fbfcfe;
-    border: 1px solid #d7dee8;
-    border-radius: 8px;
-    outline: 0;
-}
-QListWidget::item {
-    padding: 12px;
-    border-bottom: 1px solid #e8edf4;
-    color: #182230;
-}
-QListWidget::item:hover {
-    background: #eef8f6;
-}
-QListWidget::item:selected {
-    background: #d9f0ec;
-    color: #101828;
-    border-left: 3px solid #0f766e;
-}
-QSplitter::handle {
-    background: #d4dce7;
-    border-radius: 3px;
-}
-QSplitter::handle:hover {
-    background: #8bb9b4;
-}
-QSplitter::handle:horizontal {
-    width: 8px;
-    margin: 2px 0;
-}
-QSplitter::handle:vertical {
-    height: 8px;
-    margin: 0 2px;
-}
-QScrollBar:vertical {
-    background: #f1f5f9;
-    width: 10px;
-    margin: 0;
-}
-QScrollBar::handle:vertical {
-    background: #cbd5e1;
-    border-radius: 5px;
-    min-height: 32px;
-}
-QScrollBar::handle:vertical:hover {
-    background: #94a3b8;
-}
-QScrollBar:horizontal {
-    background: #f1f5f9;
-    height: 10px;
-    margin: 0;
-}
-QScrollBar::handle:horizontal {
-    background: #cbd5e1;
-    border-radius: 5px;
-    min-width: 32px;
-}
-"""
+def get_app_stylesheet(theme_name: str = "light") -> str:
+    """从 theme 模块获取当前主题的 QSS。"""
+    return theme.get_stylesheet(theme_name)
+
 
 
 def write_error(exc: BaseException) -> None:
@@ -283,7 +111,7 @@ def save_desktop_state(state: dict) -> None:
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, lock_socket):
+    def __init__(self, lock_socket, initial_theme: str = "light"):
         super().__init__()
         self.lock_socket = lock_socket
         self.items = []
@@ -291,6 +119,8 @@ class MainWindow(QMainWindow):
         self.last_log_text = ""
         self.upload_log_offsets = {}
         self.pending_thumbnails = set()
+        self.current_theme = initial_theme
+        self.video_cards: dict[str, video_card.VideoCard] = {}
         desktop_state = load_desktop_state()
         default_folder = pipeline_ui.REPO_ROOT / "video"
         self.active_folder = Path(desktop_state.get("active_folder") or default_folder)
@@ -336,27 +166,29 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
     def _build_header(self, root):
-        """顶部工具栏：Logo、标题、操作按钮、搜索框。"""
+        """顶部工具栏：Logo、标题、操作按钮、搜索框、主题切换。"""
         header_frame = QFrame()
         header_frame.setObjectName("HeaderBar")
-        header_frame.setMinimumHeight(66)
+        header_frame.setMinimumHeight(68)
         header = QHBoxLayout(header_frame)
-        header.setContentsMargins(16, 10, 16, 10)
-        header.setSpacing(11)
+        header.setContentsMargins(18, 10, 18, 10)
+        header.setSpacing(12)
 
+        # Logo
         logo = QLabel()
         logo.setObjectName("LogoMark")
-        logo.setFixedSize(42, 42)
+        logo.setFixedSize(40, 40)
         if APP_ICON_PATH.exists():
             logo_pixmap = QPixmap(str(APP_ICON_PATH)).scaled(
-                42, 42, Qt.KeepAspectRatio, Qt.SmoothTransformation,
+                40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation,
             )
             logo.setPixmap(logo_pixmap)
         header.addWidget(logo)
 
+        # 标题 + 副标题
         title_block = QVBoxLayout()
         title_block.setContentsMargins(0, 0, 0, 0)
-        title_block.setSpacing(1)
+        title_block.setSpacing(0)
         title = QLabel("CoserLens Pipeline")
         title.setObjectName("Title")
         title_block.addWidget(title)
@@ -365,6 +197,7 @@ class MainWindow(QMainWindow):
         title_block.addWidget(subtitle)
         header.addLayout(title_block)
 
+        # 操作按钮
         for text, handler in [
             ("Refresh", self.refresh_videos),
             ("Add files", self.add_files),
@@ -374,17 +207,25 @@ class MainWindow(QMainWindow):
         ]:
             button = QPushButton(text)
             button.setObjectName("ToolbarButton")
+            button.setCursor(Qt.PointingHandCursor)
             button.clicked.connect(handler)
             header.addWidget(button)
 
+        # 搜索框
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search title, filename, or path")
+        self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.render_list)
         header.addWidget(self.search, 1)
 
-        note = QLabel("Filename is used only as a clue, never as the final YouTube title.")
-        note.setObjectName("Muted")
-        header.addWidget(note)
+        # 主题切换按钮
+        self.theme_button = QPushButton(self._theme_button_text())
+        self.theme_button.setObjectName("ThemeToggle")
+        self.theme_button.setCursor(Qt.PointingHandCursor)
+        self.theme_button.setToolTip("Switch light / dark theme")
+        self.theme_button.clicked.connect(self.toggle_theme)
+        header.addWidget(self.theme_button)
+
         root.addWidget(header_frame)
 
     def _build_scope_label(self, root):
@@ -411,8 +252,10 @@ class MainWindow(QMainWindow):
         batch_layout.setSpacing(10)
         batch_layout.addWidget(self.section_label("Current Batch"))
         self.count_label = self.muted_label("0 videos")
+        self.count_label.setObjectName("CountLabel")
         batch_layout.addWidget(self.count_label)
         self.list_widget = QListWidget()
+        self.list_widget.setSpacing(2)
         self.list_widget.currentItemChanged.connect(self.on_list_changed)
         batch_layout.addWidget(self.list_widget, 1)
         left_splitter.addWidget(batch_box)
@@ -430,17 +273,12 @@ class MainWindow(QMainWindow):
         self.download_text = QTextEdit()
         self.download_text.setObjectName("InputText")
         self.download_text.setAcceptRichText(False)
-        self.apply_light_text_palette(self.download_text)
-        self.download_text.setStyleSheet(
-            "QTextEdit { background: #ffffff; color: #182230; border: 1px solid #cfd8e3; "
-            "border-radius: 6px; padding: 7px; selection-background-color: #dbeafe; "
-            "selection-color: #182230; }"
-        )
         self.download_text.setPlaceholderText("Paste a Douyin work, account, or share link")
         self.download_text.setMinimumHeight(96)
         self.download_text.textChanged.connect(self.update_download_button)
         download_layout.addWidget(self.download_text, 1)
-        self.download_button = QPushButton("Download")
+        self.download_button = QPushButton("⬇  Download")
+        self.download_button.setCursor(Qt.PointingHandCursor)
         self.download_button.clicked.connect(self.start_downloads)
         download_layout.addWidget(self.download_button)
         left_splitter.addWidget(download_box)
@@ -455,29 +293,32 @@ class MainWindow(QMainWindow):
         """中间面板：视频预览 + 文件信息 + 打开操作。"""
         middle = self.panel()
         middle_layout = QVBoxLayout(middle)
-        middle_layout.setContentsMargins(14, 14, 14, 14)
+        middle_layout.setContentsMargins(16, 16, 16, 16)
         middle_layout.setSpacing(10)
         middle_layout.addWidget(self.section_label("Preview"))
         self.path_label = self.muted_label("-")
         self.path_label.setWordWrap(True)
+        self.path_label.setObjectName("Muted")
         middle_layout.addWidget(self.path_label)
         self.preview = QLabel("Select a video on the left to preview it.")
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumHeight(520)
-        self.preview.setStyleSheet(
-            "background:#101828;color:#d6e4f0;border:1px solid #202f46;border-radius:8px;"
-        )
+        self.preview.setObjectName("VideoPreview")
         middle_layout.addWidget(self.preview, 1)
 
         preview_buttons = QHBoxLayout()
-        play_button = QPushButton("Play Video")
+        preview_buttons.setSpacing(8)
+        play_button = QPushButton("▶  Play Video")
+        play_button.setCursor(Qt.PointingHandCursor)
         play_button.clicked.connect(self.open_video)
         preview_buttons.addWidget(play_button)
         folder_button = QPushButton("Open Folder")
         folder_button.setObjectName("Secondary")
+        folder_button.setCursor(Qt.PointingHandCursor)
         folder_button.clicked.connect(self.open_folder)
         preview_buttons.addWidget(folder_button)
         self.status_label = self.muted_label("No selection")
+        self.status_label.setObjectName("StatusLabel")
         preview_buttons.addWidget(self.status_label, 1)
         middle_layout.addLayout(preview_buttons)
         splitter.addWidget(middle)
@@ -486,8 +327,8 @@ class MainWindow(QMainWindow):
         """右面板：元数据编辑 + 上传控制 + 运行日志。"""
         right = self.panel()
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(14, 14, 14, 14)
-        right_layout.setSpacing(10)
+        right_layout.setContentsMargins(16, 16, 16, 16)
+        right_layout.setSpacing(12)
 
         right_splitter = QSplitter(Qt.Vertical)
         right_layout.addWidget(right_splitter, 1)
@@ -496,19 +337,26 @@ class MainWindow(QMainWindow):
         meta_box = QWidget()
         meta_layout = QVBoxLayout(meta_box)
         meta_layout.setContentsMargins(0, 0, 0, 0)
-        meta_layout.setSpacing(8)
+        meta_layout.setSpacing(6)
         meta_layout.addWidget(self.section_label("Metadata and Upload"))
-        meta_layout.addWidget(QLabel("English title"))
+
+        title_label = QLabel("English title")
+        title_label.setObjectName("FieldLabel")
+        meta_layout.addWidget(title_label)
         self.title_edit = QLineEdit()
+        self.title_edit.setPlaceholderText("Enter a catchy YouTube title...")
         meta_layout.addWidget(self.title_edit)
-        meta_layout.addWidget(QLabel("Description"))
+
+        desc_label = QLabel("Description")
+        desc_label.setObjectName("FieldLabel")
+        meta_layout.addWidget(desc_label)
         self.description_edit = QTextEdit()
         self.description_edit.setObjectName("Description")
         self.description_edit.setAcceptRichText(False)
-        self.apply_light_text_palette(self.description_edit)
         self.description_edit.setMinimumHeight(120)
         self.description_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         meta_layout.addWidget(self.description_edit, 3)
+
         self.local_note = self.muted_label("中文参考：-")
         self.local_note.setObjectName("LocalNote")
         self.local_note.setWordWrap(True)
@@ -521,22 +369,28 @@ class MainWindow(QMainWindow):
 
         # ── 上传控制按钮 ──
         controls = QHBoxLayout()
+        controls.setSpacing(8)
         self.privacy = QComboBox()
         self.privacy.addItems(["public", "unlisted", "private"])
+        self.privacy.setMinimumWidth(90)
         controls.addWidget(self.privacy)
         save_button = QPushButton("Save Draft")
+        save_button.setCursor(Qt.PointingHandCursor)
         save_button.clicked.connect(lambda: self.save_metadata())
         controls.addWidget(save_button)
         regen_button = QPushButton("Regenerate")
         regen_button.setObjectName("Secondary")
+        regen_button.setCursor(Qt.PointingHandCursor)
         regen_button.clicked.connect(self.regenerate_metadata)
         controls.addWidget(regen_button)
         analyze_button = QPushButton("Deep Analyze")
         analyze_button.setObjectName("Secondary")
+        analyze_button.setCursor(Qt.PointingHandCursor)
         analyze_button.clicked.connect(self.deep_analyze_metadata)
         controls.addWidget(analyze_button)
         self.upload_button = QPushButton("Upload YouTube")
         self.upload_button.setObjectName("Danger")
+        self.upload_button.setCursor(Qt.PointingHandCursor)
         self.upload_button.clicked.connect(self.upload_selected)
         controls.addWidget(self.upload_button)
         meta_layout.addLayout(controls)
@@ -584,12 +438,20 @@ class MainWindow(QMainWindow):
         return label
 
     def apply_light_text_palette(self, widget):
-        palette = widget.palette()
-        palette.setColor(QPalette.Base, QColor("#ffffff"))
-        palette.setColor(QPalette.Text, QColor("#182230"))
-        palette.setColor(QPalette.Highlight, QColor("#dbeafe"))
-        palette.setColor(QPalette.HighlightedText, QColor("#182230"))
-        widget.setPalette(palette)
+        """已废弃：theme.py 通过 QSS 自动处理文本颜色。保留以防外部调用。"""
+        pass
+
+    def _theme_button_text(self) -> str:
+        """返回主题切换按钮的当前文字。"""
+        return "☀" if self.current_theme == "dark" else "🌙"
+
+    def toggle_theme(self):
+        """切换浅色/暗色主题。"""
+        self.current_theme = "dark" if self.current_theme == "light" else "light"
+        QApplication.instance().setStyleSheet(get_app_stylesheet(self.current_theme))
+        self.theme_button.setText(self._theme_button_text())
+        theme.save_theme_preference(self.current_theme)
+        self.append_log(f"Theme switched to {self.current_theme}.")
 
     def refresh_videos(self):
         try:
@@ -604,30 +466,41 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, APP_TITLE, f"Refresh failed: {exc}")
 
     def render_list(self):
+        """渲染视频列表为卡片形式。"""
         query = self.search.text().strip().lower()
         current_id = self.selected_id
         self.list_widget.blockSignals(True)
         self.list_widget.clear()
+        self.video_cards.clear()
         visible = []
         for item in self.items:
             haystack = f"{item['title']} {item['filename']} {item['relative_path']}".lower()
             if not query or query in haystack:
                 visible.append(item)
         for item in visible:
-            marker = " [uploaded]" if item.get("upload", {}).get("url") else ""
-            text = (
-                f"{item['title']}{marker}\n"
-                f"{item['modified_text']} | {self.format_bytes(item['size'])}\n"
-                f"{item['relative_path']}"
-            )
-            list_item = QListWidgetItem(text)
+            card = video_card.VideoCard(item)
+            card.clicked.connect(self._on_card_clicked)
+            list_item = QListWidgetItem()
             list_item.setData(Qt.UserRole, item["id"])
+            # 设置项大小（卡片高度 + 一些边距）
+            list_item.setSizeHint(card.sizeHint())
             self.list_widget.addItem(list_item)
+            self.list_widget.setItemWidget(list_item, card)
+            self.video_cards[item["id"]] = card
             if item["id"] == current_id:
                 self.list_widget.setCurrentItem(list_item)
+                card.set_selected(True)
         self.list_widget.blockSignals(False)
         self.count_label.setText(f"{len(visible)} / {len(self.items)} videos")
+        # 若有选中项，确保对应卡片高亮
+        if current_id and current_id in self.video_cards:
+            self.video_cards[current_id].set_selected(True)
         self.update_scope_label()
+
+    def _on_card_clicked(self, item_id: str):
+        """视频卡片被点击（不依赖 QListWidget 的选中信号）。"""
+        if item_id != self.selected_id:
+            self.select_item(item_id)
 
     def scan_active_folder(self):
         folder = self.active_folder.resolve()
@@ -687,12 +560,18 @@ class MainWindow(QMainWindow):
             self.select_item(current.data(Qt.UserRole))
 
     def select_item(self, item_id):
+        # 取消上一张卡片的高亮
+        if self.selected_id and self.selected_id in self.video_cards:
+            self.video_cards[self.selected_id].set_selected(False)
         self.selected_id = item_id
+        # 高亮新选中的卡片
+        if item_id in self.video_cards:
+            self.video_cards[item_id].set_selected(True)
         item = self.current_item()
         if not item:
             return
         self.path_label.setText(item["path"])
-        self.status_label.setText(f"{item['modified_text']} | {self.format_bytes(item['size'])}")
+        self.status_label.setText(f"{item['modified_text']}  ·  {self.format_bytes(item['size'])}")
         self.title_edit.setText(item["title"])
         self.description_edit.setPlainText(item["description"])
         self.update_local_note(item)
@@ -1204,7 +1083,35 @@ class MainWindow(QMainWindow):
             pass
 
     def append_log(self, message):
-        self.log.append(message.rstrip())
+        """追加一行日志，自动加时间戳前缀并按级别着色。
+
+        规则：
+        - 含 "ERROR"/"Failed"/"critical" → 红色
+        - 含 "WARN"/"warning" → 琥珀
+        - 含 "complete"/"done"/"finished"/"success" → 绿色
+        - 含 "Theme switched" → 紫色
+        - 其余 → 浅蓝
+        """
+        text = message.rstrip()
+        # 时间戳前缀
+        timestamp = time.strftime("%H:%M:%S")
+        lower = text.lower()
+        if any(tag in lower for tag in ("error", "failed", "critical", "exception")):
+            color = "#f87171"  # red-400
+        elif any(tag in lower for tag in ("warn", "warning")):
+            color = "#fbbf24"  # amber-400
+        elif any(tag in lower for tag in ("complete", "done", "finished", "success", "finished")):
+            color = "#4ade80"  # green-400
+        elif "theme" in lower:
+            color = "#a78bfa"  # violet-400
+        else:
+            color = "#93c5fd"  # blue-300
+        # 用 HTML 上色
+        html = (
+            f'<span style="color:#64748b">[{timestamp}]</span> '
+            f'<span style="color:{color}">{text}</span>'
+        )
+        self.log.append(html)
 
     @staticmethod
     def format_bytes(size):
@@ -1246,9 +1153,10 @@ def main():
     icon = app_icon()
     if not icon.isNull():
         app.setWindowIcon(icon)
-    app.setStyleSheet(STYLE)
+    initial_theme = theme.load_theme_preference()
+    app.setStyleSheet(get_app_stylesheet(initial_theme))
     write_trace("creating MainWindow")
-    window = MainWindow(lock)
+    window = MainWindow(lock, initial_theme=initial_theme)
     window.move(40, 40)
     window.show()
     window.showNormal()
