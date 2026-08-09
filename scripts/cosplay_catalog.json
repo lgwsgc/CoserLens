@@ -1,0 +1,327 @@
+{
+  "characters": [
+    {
+      "character_cn": "\u5723\u91c7\u513f",
+      "character_en": "Sheng Cai'er",
+      "source_cn": "\u795e\u5370\u738b\u5ea7",
+      "source_en": "Throne of Seal",
+      "aliases": ["\u5723\u91c7\u513f", "\u5723\u91c7\u513er", "sheng cai'er", "sheng caier", "caier"],
+      "source_aliases": ["\u795e\u5370\u738b\u5ea7", "throne of seal", "sealed divine throne"],
+      "hashtags": ["#ShengCaier", "#ThroneOfSeal", "#Donghua"]
+    },
+    {
+      "character_cn": "\u51b0\u516c\u4e3b",
+      "character_en": "Ice Princess",
+      "source_cn": "\u7cbe\u7075\u68a6\u53f6\u7f57\u4e3d",
+      "source_en": "Ye Luoli",
+      "aliases": ["\u51b0\u516c\u4e3b", "\u51b0\u516c\u4e3bcos", "ice princess"],
+      "source_aliases": ["\u53f6\u7f57\u4e3d", "\u7cbe\u7075\u68a6\u53f6\u7f57\u4e3d", "\u86cb\u4ed4\u53f6\u7f57\u4e3d", "ye luoli"],
+      "hashtags": ["#IcePrincess", "#YeLuoli"]
+    },
+    {
+      "character_cn": "阿狸",
+      "character_en": "Ahri",
+      "source_cn": "英雄联盟",
+      "source_en": "League of Legends",
+      "aliases": ["阿狸", "阿狸cos", "ahri"],
+      "source_aliases": ["英雄联盟", "联盟", "lol", "league of legends"],
+      "hashtags": ["#Ahri", "#LeagueOfLegends"]
+    },
+    {
+      "character_cn": "萧薰儿",
+      "character_en": "Xiao Xun'er",
+      "source_cn": "斗破苍穹",
+      "source_en": "Battle Through the Heavens",
+      "aliases": ["萧薰儿", "薰儿", "xiao xun'er", "xiao xuner", "xiaoxuner"],
+      "source_aliases": ["斗破苍穹", "斗破", "battle through the heavens"],
+      "hashtags": ["#XiaoXuner", "#Donghua"]
+    },
+    {
+      "character_cn": "顾清寒",
+      "character_en": "Gu Qinghan",
+      "source_cn": "永劫无间",
+      "source_en": "Naraka: Bladepoint",
+      "aliases": ["顾清寒", "顾清寒cos", "gu qinghan", "guqinghan"],
+      "source_aliases": ["永劫无间", "naraka", "naraka bladepoint", "naraka: bladepoint"],
+      "hashtags": ["#GuQinghan", "#NarakaBladepoint"]
+    },
+    {
+      "character_cn": "殷紫萍",
+      "character_en": "Yin Ziping",
+      "source_cn": "永劫无间",
+      "source_en": "Naraka: Bladepoint",
+      "aliases": ["殷紫萍", "殷紫萍cos", "yin ziping", "yinziping"],
+      "source_aliases": ["永劫无间", "naraka", "naraka bladepoint", "naraka: bladepoint"],
+      "hashtags": ["#YinZiping", "#NarakaBladepoint"]
+    },
+    {
+      "character_cn": "迦南",
+      "character_en": "Canaan",
+      "source_cn": "永劫无间",
+      "source_en": "Naraka: Bladepoint",
+      "aliases": ["迦南", "迦南cos", "canaan"],
+      "source_aliases": ["永劫无间", "naraka", "naraka bladepoint", "naraka: bladepoint"],
+      "hashtags": ["#Canaan", "#NarakaBladepoint"]
+    },
+    {
+      "character_cn": "玉玲珑",
+      "character_en": "Yu Linglong",
+      "source_cn": "永劫无间",
+      "source_en": "Naraka: Bladepoint",
+      "aliases": ["玉玲珑", "玉玲珑cos"],
+      "source_aliases": ["永劫无间", "naraka", "naraka bladepoint", "naraka: bladepoint"],
+      "hashtags": ["#NarakaBladepoint", "#GameCosplay"]
+    },
+    {
+      "character_cn": "公孙离",
+      "character_en": "Gongsun Li",
+      "source_cn": "王者荣耀",
+      "source_en": "Honor of Kings",
+      "aliases": ["公孙离", "公孙离cos", "gongsun li", "gongsunli"],
+      "source_aliases": ["王者荣耀", "honor of kings", "hok"],
+      "hashtags": ["#GongsunLi", "#HonorOfKings"]
+    },
+    {
+      "character_cn": "大乔",
+      "character_en": "Da Qiao",
+      "source_cn": "王者荣耀",
+      "source_en": "Honor of Kings",
+      "aliases": ["大乔", "大乔cos", "da qiao", "daqiao"],
+      "source_aliases": ["王者荣耀", "honor of kings", "hok"],
+      "hashtags": ["#DaQiao", "#HonorOfKings"]
+    },
+    {
+      "character_cn": "露娜",
+      "character_en": "Luna",
+      "source_cn": "王者荣耀",
+      "source_en": "Honor of Kings",
+      "aliases": ["露娜", "露娜cos", "luna"],
+      "source_aliases": ["王者荣耀", "honor of kings", "hok"],
+      "hashtags": ["#Luna", "#HonorOfKings"]
+    },
+    {
+      "character_cn": "朵莉亚",
+      "character_en": "Dolia",
+      "source_cn": "王者荣耀",
+      "source_en": "Honor of Kings",
+      "aliases": ["朵莉亚", "朵莉亚cos", "dolia"],
+      "source_aliases": ["王者荣耀", "honor of kings", "hok"],
+      "hashtags": ["#Dolia", "#HonorOfKings"]
+    },
+    {
+      "character_cn": "长离",
+      "character_en": "Changli",
+      "source_cn": "鸣潮",
+      "source_en": "Wuthering Waves",
+      "aliases": ["长离", "长离cos", "鸣潮长离", "changli"],
+      "source_aliases": ["鸣潮", "wuthering waves", "wuwa"],
+      "hashtags": ["#Changli", "#WutheringWaves"]
+    },
+    {
+      "character_cn": "绯雪",
+      "character_en": "Cartethyia",
+      "source_cn": "鸣潮",
+      "source_en": "Wuthering Waves",
+      "aliases": ["绯雪", "鸣潮绯雪", "cartethyia"],
+      "source_aliases": ["鸣潮", "wuthering waves", "wuwa"],
+      "hashtags": ["#Cartethyia", "#WutheringWaves"]
+    },
+    {
+      "character_cn": "爱弥斯",
+      "character_en": "Iuno",
+      "source_cn": "鸣潮",
+      "source_en": "Wuthering Waves",
+      "aliases": ["爱弥斯", "iuno"],
+      "source_aliases": ["鸣潮", "wuthering waves", "wuwa"],
+      "hashtags": ["#Iuno", "#WutheringWaves"]
+    },
+    {
+      "character_cn": "宵宫",
+      "character_en": "Yoimiya",
+      "source_cn": "原神",
+      "source_en": "Genshin Impact",
+      "aliases": ["宵宫", "宵宫cos", "宵宫同好会", "yoimiya"],
+      "source_aliases": ["原神", "原神枫丹", "genshin", "genshin impact"],
+      "hashtags": ["#Yoimiya", "#GenshinImpact"]
+    },
+    {
+      "character_cn": "芙莉莲",
+      "character_en": "Frieren",
+      "source_cn": "葬送的芙莉莲",
+      "source_en": "Frieren: Beyond Journey's End",
+      "aliases": ["芙莉莲", "frieren"],
+      "source_aliases": ["葬送的芙莉莲", "frieren", "frieren beyond journey"],
+      "hashtags": ["#Frieren", "#AnimeCosplay"]
+    },
+    {
+      "character_cn": "樱岛麻衣",
+      "character_en": "Mai Sakurajima",
+      "source_cn": "青春猪头少年不会梦到兔女郎学姐",
+      "source_en": "Rascal Does Not Dream of Bunny Girl Senpai",
+      "aliases": ["樱岛麻衣", "麻衣学姐", "mai sakurajima"],
+      "source_aliases": ["青春猪头少年不会梦到兔女郎学姐", "bunny girl senpai", "rascal does not dream"],
+      "hashtags": ["#MaiSakurajima", "#AnimeCosplay"]
+    },
+    {
+      "character_cn": "花火",
+      "character_en": "Sparkle",
+      "source_cn": "崩坏星穹铁道",
+      "source_en": "Honkai: Star Rail",
+      "aliases": ["花火", "火花", "sparkle"],
+      "source_aliases": ["崩坏星穹铁道", "星穹铁道", "星铁", "honkai star rail", "hsr"],
+      "hashtags": ["#Sparkle", "#HonkaiStarRail"]
+    },
+    {
+      "character_cn": "银狼",
+      "character_en": "Silver Wolf",
+      "source_cn": "崩坏星穹铁道",
+      "source_en": "Honkai: Star Rail",
+      "aliases": ["银狼", "sp银狼", "silver wolf"],
+      "source_aliases": ["崩坏星穹铁道", "星穹铁道", "星铁", "honkai star rail", "hsr"],
+      "hashtags": ["#SilverWolf", "#HonkaiStarRail"]
+    },
+    {
+      "character_cn": "昔涟",
+      "character_en": "Cerydra",
+      "source_cn": "崩坏星穹铁道",
+      "source_en": "Honkai: Star Rail",
+      "aliases": ["昔涟", "cerydra"],
+      "source_aliases": ["崩坏星穹铁道", "星穹铁道", "星铁", "honkai star rail", "hsr"],
+      "hashtags": ["#Cerydra", "#HonkaiStarRail"]
+    },
+    {
+      "character_cn": "希希芙",
+      "character_en": "Seed",
+      "source_cn": "绝区零",
+      "source_en": "Zenless Zone Zero",
+      "aliases": ["希希芙", "seed"],
+      "source_aliases": ["绝区零", "zzz", "zenless zone zero"],
+      "hashtags": ["#ZenlessZoneZero", "#GameCosplay"]
+    },
+    {
+      "character_cn": "曲娘",
+      "character_en": "Jiu Niangzi",
+      "source_cn": "重返未来1999",
+      "source_en": "Reverse: 1999",
+      "aliases": ["曲娘", "jiu niangzi"],
+      "source_aliases": ["重返未来1999", "reverse 1999", "reverse: 1999"],
+      "hashtags": ["#Reverse1999", "#GameCosplay"]
+    },
+    {
+      "character_cn": "飞鸟马时",
+      "character_en": "Asuma Toki",
+      "source_cn": "蔚蓝档案",
+      "source_en": "Blue Archive",
+      "aliases": ["飞鸟马时", "马时", "asuma toki", "toki"],
+      "source_aliases": ["蔚蓝档案", "blue archive", "ba"],
+      "hashtags": ["#AsumaToki", "#BlueArchive"]
+    },
+    {
+      "character_cn": "妃咲",
+      "character_en": "Kisaki",
+      "source_cn": "蔚蓝档案",
+      "source_en": "Blue Archive",
+      "aliases": ["妃咲", "kisaki"],
+      "source_aliases": ["蔚蓝档案", "blue archive", "ba"],
+      "hashtags": ["#Kisaki", "#BlueArchive"]
+    },
+    {
+      "character_cn": "七省",
+      "character_en": "Nanao",
+      "source_cn": "碧蓝航线",
+      "source_en": "Azur Lane",
+      "aliases": ["七省", "nanao"],
+      "source_aliases": ["碧蓝航线", "azur lane"],
+      "hashtags": ["#AzurLane", "#GameCosplay"]
+    },
+    {
+      "character_cn": "伊冯",
+      "character_en": "Yvonne",
+      "source_cn": "明日方舟：终末地",
+      "source_en": "Arknights: Endfield",
+      "aliases": ["伊冯", "yvonne"],
+      "source_aliases": ["终末地", "明日方舟", "arknights", "arknights endfield"],
+      "hashtags": ["#Yvonne", "#ArknightsEndfield"]
+    },
+    {
+      "character_cn": "佩丽卡",
+      "character_en": "Perlica",
+      "source_cn": "明日方舟：终末地",
+      "source_en": "Arknights: Endfield",
+      "aliases": ["佩丽卡", "perlica"],
+      "source_aliases": ["终末地", "明日方舟", "arknights", "arknights endfield"],
+      "hashtags": ["#Perlica", "#ArknightsEndfield"]
+    },
+    {
+      "character_cn": "星绘",
+      "character_en": "Michele",
+      "source_cn": "卡拉彼丘",
+      "source_en": "Strinova",
+      "aliases": ["星绘", "michele"],
+      "source_aliases": ["卡拉彼丘", "strinova"],
+      "hashtags": ["#Strinova", "#GameCosplay"]
+    }
+  ],
+  "sources": [
+    {
+      "source_cn": "英雄联盟",
+      "source_en": "League of Legends",
+      "aliases": ["英雄联盟", "联盟", "lol", "league of legends"],
+      "hashtags": ["#LeagueOfLegends", "#GameCosplay"]
+    },
+    {
+      "source_cn": "原神",
+      "source_en": "Genshin Impact",
+      "aliases": ["原神", "genshin", "genshin impact"],
+      "hashtags": ["#GenshinImpact", "#GameCosplay"]
+    },
+    {
+      "source_cn": "崩坏星穹铁道",
+      "source_en": "Honkai: Star Rail",
+      "aliases": ["崩坏星穹铁道", "星穹铁道", "星铁", "honkai star rail", "hsr"],
+      "hashtags": ["#HonkaiStarRail", "#GameCosplay"]
+    },
+    {
+      "source_cn": "永劫无间",
+      "source_en": "Naraka: Bladepoint",
+      "aliases": ["永劫无间", "naraka", "naraka bladepoint", "naraka: bladepoint"],
+      "hashtags": ["#NarakaBladepoint", "#GameCosplay"]
+    },
+    {
+      "source_cn": "王者荣耀",
+      "source_en": "Honor of Kings",
+      "aliases": ["王者荣耀", "honor of kings", "hok"],
+      "hashtags": ["#HonorOfKings", "#GameCosplay"]
+    },
+    {
+      "source_cn": "鸣潮",
+      "source_en": "Wuthering Waves",
+      "aliases": ["鸣潮", "wuthering waves", "wuwa"],
+      "hashtags": ["#WutheringWaves", "#GameCosplay"]
+    },
+    {
+      "source_cn": "绝区零",
+      "source_en": "Zenless Zone Zero",
+      "aliases": ["绝区零", "zzz", "zenless zone zero"],
+      "hashtags": ["#ZenlessZoneZero", "#GameCosplay"]
+    },
+    {
+      "source_cn": "碧蓝航线",
+      "source_en": "Azur Lane",
+      "aliases": ["碧蓝航线", "azur lane"],
+      "hashtags": ["#AzurLane", "#GameCosplay"]
+    },
+    {
+      "source_cn": "蔚蓝档案",
+      "source_en": "Blue Archive",
+      "aliases": ["蔚蓝档案", "blue archive", "ba"],
+      "hashtags": ["#BlueArchive", "#GameCosplay"]
+    },
+    {
+      "source_cn": "重返未来1999",
+      "source_en": "Reverse: 1999",
+      "aliases": ["重返未来1999", "reverse 1999", "reverse: 1999"],
+      "hashtags": ["#Reverse1999", "#GameCosplay"]
+    }
+  ]
+}

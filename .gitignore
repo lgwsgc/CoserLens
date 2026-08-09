@@ -1,0 +1,91 @@
+# ==============================================================
+# CoserLens Pipeline - .gitignore
+# ==============================================================
+
+# ---- 视频和媒体文件 ----
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.flv
+*.wmv
+*.webm
+*.m4v
+*.mpg
+*.mpeg
+*.ts
+*.m2ts
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp
+
+# ---- Chrome 浏览器配置（含登录Cookie，严禁提交）----
+.codex_chrome_youtube_profile/
+
+# ---- 第三方下载工具 ----
+TikTokDownloader/
+
+# ---- 运行时状态和临时目录 ----
+pipeline_state.json
+.pipeline_*/
+.pipeline_logs/
+.pipeline_thumbnails/
+.pipeline_desktop_qt_state.json
+
+# ---- 下载和增强输出目录 ----
+download_ui_outputs/
+enhanced_outputs/
+video/
+video_已发/
+
+# ---- 二进制工具 ----
+tools/
+
+# ---- Python 缓存 ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+
+# ---- 虚拟环境 ----
+venv/
+.venv/
+env/
+ENV/
+
+# ---- IDE / 编辑器 ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# ---- 操作系统文件 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ---- 项目工作区数据 ----
+.workbuddy/
+
+# ---- 日志文件 ----
+*.log
+
+# ---- 分析缓存 ----
+.pipeline_analysis_cache/
+
+# ---- 其他临时文件 ----
+*.tmp
+*.temp
+*.bak
