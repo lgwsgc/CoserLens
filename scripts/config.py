@@ -4,6 +4,7 @@
 REPO_ROOT 通过脚本位置自动推导，换电脑/改目录无需修改代码。
 """
 
+import os
 import shutil
 from pathlib import Path
 
@@ -51,7 +52,12 @@ CHANNEL_ID = "UCZczM9s_ppC1spTRCE2oo8A"
 
 # 端口
 API_PORT = 7863
+DOWNLOAD_UI_PORT = 7862
 SINGLE_INSTANCE_PORT = 17864
+
+# 网络
+# 抖音/TikTok CDN 在部分地区可能有证书链问题，可通过环境变量 COSERLENS_VERIFY_SSL=0 关闭
+VERIFY_SSL = os.environ.get("COSERLENS_VERIFY_SSL", "1") != "0"
 
 # 应用信息
 APP_TITLE = "CoserLens Pipeline"

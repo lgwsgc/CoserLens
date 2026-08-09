@@ -2,20 +2,23 @@
 
 import hashlib
 import json
+import logging
+import os
+import tempfile
 import threading
-import time
 from pathlib import Path
 
 import config
+import utils
+
+logger = logging.getLogger(__name__)
 
 STATE_PATH = config.STATE_PATH
 STATE_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
 
-
-def now_text() -> str:
-    """格式化当前时间，用于日志前缀。"""
-    return time.strftime("%H:%M:%S")
+# 向后兼容：now_text 统一由 utils 提供
+now_text = utils.now_text
 
 
 def load_state() -> dict:
@@ -24,13 +27,30 @@ def load_state() -> dict:
         return {"metadata": {}, "uploads": {}}
     try:
         return json.loads(STATE_PATH.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to load state file: %s", exc)
         return {"metadata": {}, "uploads": {}}
 
 
 def save_state(state: dict) -> None:
-    """持久化状态到 pipeline_state.json。"""
-    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    """原子写入状态文件，防止写入中途崩溃导致数据损坏。
+
+    先写入同目录临时文件，再用 os.replace() 原子替换。
+    """
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        dir=STATE_PATH.parent, suffix=".tmp", prefix=".state_"
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, STATE_PATH)
+    except BaseException:
+        # 写入失败时清理临时文件
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def video_id_for_path(path: Path) -> str:

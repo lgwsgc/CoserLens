@@ -1,0 +1,6 @@
+# CoserLens Pipeline - Python 依赖
+# 安装: pip install -r requirements.txt
+
+PySide6>=6.5
+playwright>=1.40
+httpx>=0.25

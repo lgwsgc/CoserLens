@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>视频下载控制台</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d8dde6;
+      --text: #1f2937;
+      --muted: #667085;
+      --accent: #126b5b;
+      --accent-2: #234f9a;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    h1 { font-size: 18px; margin: 0; font-weight: 650; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(360px, 520px) 1fr;
+      gap: 18px;
+      padding: 18px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    h2 {
+      font-size: 15px;
+      margin: 0 0 14px;
+      font-weight: 650;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 124px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      font: 14px/1.45 Consolas, "Microsoft YaHei", monospace;
+      color: var(--text);
+      background: #fbfcfe;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(18,107,91,.12); }
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+    button.secondary { background: #eef2f7; color: var(--text); border: 1px solid var(--line); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      min-height: 64px;
+      background: #fbfcfe;
+    }
+    .metric span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .metric strong { font-size: 14px; word-break: break-all; }
+    .progress {
+      height: 12px;
+      background: #e9edf3;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 12px 0 8px;
+    }
+    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+    pre {
+      height: 300px;
+      overflow: auto;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 6px;
+      padding: 12px;
+      font: 12px/1.5 Consolas, monospace;
+      white-space: pre-wrap;
+    }
+    .path {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfe;
+      word-break: break-all;
+      font: 12px/1.5 Consolas, monospace;
+    }
+    .error { color: var(--danger); }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>视频下载控制台</h1>
+    <div class="hint">单作品最高码率下载</div>
+  </header>
+  <main>
+    <section>
+      <h2>下载任务</h2>
+      <label for="source">作品链接或作品 ID</label>
+      <textarea id="source" placeholder="例如：https://www.douyin.com/video/7433368409930206522 或 v.douyin.com 短链"></textarea>
+      <div class="row">
+        <button id="startBtn">开始下载</button>
+        <button class="secondary" id="clearBtn">清空</button>
+      </div>
+      <p class="hint">保存目录固定为 D:\AI-Projects\youtube_pipeline\download_ui_outputs。Cookie 读取现有 settings.json，不会在界面显示。</p>
+    </section>
+    <section>
+      <h2>任务状态</h2>
+      <div class="status-grid">
+        <div class="metric"><span>状态</span><strong id="status">待开始</strong></div>
+        <div class="metric"><span>作品 ID</span><strong id="aweme">-</strong></div>
+        <div class="metric"><span>规格</span><strong id="spec">-</strong></div>
+        <div class="metric"><span>大小</span><strong id="size">-</strong></div>
+      </div>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="hint" id="progressText">0%</div>
+      <h2 style="margin-top:16px;">输出文件</h2>
+      <div class="path" id="output">-</div>
+      <h2 style="margin-top:16px;">日志</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+  <script>
+    let jobId = null;
+    let timer = null;
+    const $ = (id) => document.getElementById(id);
+
+    function fmtBytes(n) {
+      if (!n) return "-";
+      const units = ["B", "KB", "MB", "GB"];
+      let value = n, i = 0;
+      while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
+      return value.toFixed(i ? 2 : 0) + " " + units[i];
+    }
+
+    async function start() {
+      const source = $("source").value.trim();
+      if (!source) return;
+      $("startBtn").disabled = true;
+      const res = await fetch("/api/download", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({source})
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $("status").innerHTML = '<span class="error">' + (data.error || "启动失败") + "</span>";
+        $("startBtn").disabled = false;
+        return;
+      }
+      jobId = data.job_id;
+      poll();
+      timer = setInterval(poll, 1000);
+    }
+
+    async function poll() {
+      if (!jobId) return;
+      const res = await fetch("/api/status?id=" + encodeURIComponent(jobId));
+      const job = await res.json();
+      $("status").textContent = job.status || "-";
+      $("aweme").textContent = job.aweme_id || "-";
+      const meta = job.meta || {};
+      $("spec").textContent = meta.width ? `${meta.width}x${meta.height} ${meta.fps || "-"}fps` : "-";
+      $("size").textContent = fmtBytes(job.downloaded || meta.data_size);
+      $("output").textContent = job.output || "-";
+      $("log").textContent = (job.log || []).join("\n");
+      $("bar").style.width = (job.progress || 0).toFixed(1) + "%";
+      $("progressText").textContent = (job.progress || 0).toFixed(1) + "%";
+      if (job.status === "done" || job.status === "error") {
+        clearInterval(timer);
+        $("startBtn").disabled = false;
+      }
+    }
+
+    $("startBtn").addEventListener("click", start);
+    $("clearBtn").addEventListener("click", () => {
+      $("source").value = "";
+      $("log").textContent = "";
+    });
+  </script>
+</body>
+</html>

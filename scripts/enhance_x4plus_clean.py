@@ -1,5 +1,6 @@
 import argparse
 import datetime as dt
+import logging
 import re
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ import time
 from pathlib import Path
 
 import config
+import utils
 
 REPO_ROOT = config.REPO_ROOT
 DEFAULT_OUTPUT_ROOT = config.ENHANCED_OUTPUT_ROOT
@@ -21,20 +23,8 @@ DEFAULT_DOWNLOAD_DIR = (
 REALESRGAN_DIR = config.REALESRGAN_DIR
 REALESRGAN_EXE = config.REALESRGAN_EXE
 MODEL_DIR = config.REALESRGAN_MODEL_DIR
-
-
-def safe_stem(path: Path) -> str:
-    return re.sub(r'[\\/:*?"<>|]', "_", path.stem)
-
-
-def find_executable(name: str) -> str:
-    found = shutil.which(name)
-    if found:
-        return found
-    common = config.FFMPEG_DIR / f"{name}.exe"
-    if common.exists():
-        return str(common)
-    raise FileNotFoundError(f"Cannot find {name}. Make sure it is in PATH.")
+FFMPEG = config.FFMPEG
+FFPROBE = config.FFPROBE
 
 
 def format_seconds(seconds: float | None) -> str:
@@ -155,11 +145,12 @@ def run_command(
             encoding="utf-8",
             errors="replace",
         )
-        assert process.stdout is not None
+        if process.stdout is None:
+            raise RuntimeError("subprocess did not open stdout pipe")
+        stdout = process.stdout
 
         def drain_output() -> None:
-            assert process.stdout is not None
-            for output_line in process.stdout:
+            for output_line in stdout:
                 log.write(output_line)
                 log.flush()
 
@@ -199,6 +190,10 @@ def run_command(
         raise RuntimeError(f"Command failed with exit code {return_code}: {args[0]}")
 
 
+DEFAULT_FPS = 60.0
+logger = logging.getLogger(__name__)
+
+
 def ffprobe_fps(ffprobe: str, input_video: Path) -> float:
     try:
         result = subprocess.run(
@@ -227,8 +222,9 @@ def ffprobe_fps(ffprobe: str, input_video: Path) -> float:
             if den_value:
                 return float(num) / den_value
         return float(raw)
-    except Exception:
-        return 60.0
+    except Exception as exc:
+        logger.warning("ffprobe_fps failed for %s (using default %.0f fps): %s", input_video.name, DEFAULT_FPS, exc)
+        return DEFAULT_FPS
 
 
 def format_fps(fps: float) -> str:
@@ -261,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--base-width", type=int, default=540, help="Intermediate frame width. Default: 540")
     parser.add_argument("--base-height", type=int, default=960, help="Intermediate frame height. Default: 960")
-    parser.add_argument("--gpu-id", type=int, default=1, help="Vulkan GPU id. Default: 1 for NVIDIA on this machine.")
+    parser.add_argument("--gpu-id", type=int, default=0, help="Vulkan GPU id. Default: 0.")
     parser.add_argument("--tile-size", type=int, default=512, help="Real-ESRGAN tile size. Default: 512")
     parser.add_argument("--cq", type=int, default=16, help="NVENC constant quality. Lower is larger/cleaner. Default: 16")
     parser.add_argument("--bitrate", default="30M", help="Target video bitrate. Default: 30M")
@@ -303,7 +299,7 @@ def prepare_job_dirs(input_video: Path, args) -> dict:
     """创建输出目录结构，返回路径字典。"""
     output_root = Path(args.output_root).expanduser().resolve()
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    job_dir = output_root / f"{safe_stem(input_video)}_x4plus_clean_{stamp}"
+    job_dir = output_root / f"{utils.safe_stem(input_video.stem)}_x4plus_clean_{stamp}"
     frames_small = job_dir / f"frames_{args.base_width}x{args.base_height}"
     frames_ai = job_dir / "frames_x4plus_4x"
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -314,8 +310,8 @@ def prepare_job_dirs(input_video: Path, args) -> dict:
         "frames_small": frames_small,
         "frames_ai": frames_ai,
         "log_path": job_dir / "run.log",
-        "output_video": job_dir / f"{safe_stem(input_video)}_x4plus-clean_{args.base_width}x{args.base_height}_to_4x_h265.mp4",
-        "compare_video": job_dir / f"{safe_stem(input_video)}_compare_left-original_right-x4plus-clean.mp4",
+        "output_video": job_dir / f"{utils.safe_stem(input_video.stem)}_x4plus-clean_{args.base_width}x{args.base_height}_to_4x_h265.mp4",
+        "compare_video": job_dir / f"{utils.safe_stem(input_video.stem)}_compare_left-original_right-x4plus-clean.mp4",
     }
 
 
@@ -408,9 +404,10 @@ def encode_enhanced_video(ffmpeg: str, frames_ai: Path, input_video: Path,
 
 
 def encode_comparison_video(ffmpeg: str, input_video: Path,
-                            output_video: Path, compare_video: Path, log_path: Path) -> None:
+                            output_video: Path, compare_video: Path,
+                            min_free_gb: float, log_path: Path) -> None:
     """编码左右对比视频（原始 vs 增强）。"""
-    require_free_space(compare_video.parent, 20.0, log_path)
+    require_free_space(compare_video.parent, min_free_gb, log_path)
     write_step("Encoding comparison video", log_path)
     run_command(
         [
@@ -448,9 +445,9 @@ def main() -> int:
     if not REALESRGAN_EXE.exists():
         raise FileNotFoundError(f"Real-ESRGAN executable not found: {REALESRGAN_EXE}")
 
-    ffmpeg = find_executable("ffmpeg")
+    ffmpeg = FFMPEG
     try:
-        ffprobe = find_executable("ffprobe")
+        ffprobe = FFPROBE
     except FileNotFoundError:
         ffprobe = str(Path(ffmpeg).with_name("ffprobe.exe"))
 
@@ -482,7 +479,8 @@ def main() -> int:
     encode_enhanced_video(ffmpeg, frames_ai, input_video,
                           paths["output_video"], fps_text, args, log_path)
     encode_comparison_video(ffmpeg, input_video,
-                            paths["output_video"], paths["compare_video"], log_path)
+                            paths["output_video"], paths["compare_video"],
+                            args.min_free_gb, log_path)
 
     write_step("Done", log_path)
     if not args.keep_frames:

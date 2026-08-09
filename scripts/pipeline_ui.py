@@ -5,6 +5,7 @@ YouTube 上传逻辑见 youtube_uploader.py，元数据生成见 metadata_helper
 共享状态见 state.py。
 """
 
+import hashlib
 import json
 import logging
 import mimetypes
@@ -59,7 +60,7 @@ def _load_html() -> str:
     return _HTML_CACHE
 
 
-# ── 视频扫描 ───────────────────────────────────────────────
+# ── 视频扫描（带 TTL 缓存）─────────────────────────────────
 
 def scan_roots(state_data: dict | None = None) -> list[Path]:
     """返回所有视频搜索根目录（含自定义路径）。"""
@@ -86,8 +87,26 @@ def add_custom_path(path: Path) -> None:
         save_state(st)
 
 
-def scan_videos() -> list[dict]:
-    """扫描所有根目录下的 mp4 文件，返回带元数据的视频列表。"""
+# 缓存：避免每次 API 请求都重新扫描 1000+ 视频目录
+_SCAN_CACHE: list[dict] | None = None
+_SCAN_CACHE_TIME: float = 0
+_SCAN_CACHE_LOCK = threading.Lock()
+_SCAN_TTL = 5.0  # 秒，5 秒内的重复请求使用缓存
+
+
+def scan_videos(force_refresh: bool = False) -> list[dict]:
+    """扫描所有根目录下的 mp4 文件，返回带元数据的视频列表。
+
+    带 TTL 缓存：5 秒内的重复调用直接返回缓存结果，
+    避免对 1000+ 视频频繁调用 draft_metadata。
+    """
+    global _SCAN_CACHE, _SCAN_CACHE_TIME
+
+    if not force_refresh:
+        with _SCAN_CACHE_LOCK:
+            if _SCAN_CACHE is not None and (time.time() - _SCAN_CACHE_TIME) < _SCAN_TTL:
+                return _SCAN_CACHE
+
     with STATE_LOCK:
         st = load_state()
     metadata_state = st.get("metadata", {})
@@ -96,12 +115,25 @@ def scan_videos() -> list[dict]:
     for root in scan_roots(st):
         if not root.exists():
             continue
-        found.extend(path for path in root.rglob("*.mp4") if path.is_file())
-    found = sorted(set(found), key=lambda path: path.stat().st_mtime, reverse=True)
+        try:
+            found.extend(path for path in root.rglob("*.mp4") if path.is_file())
+        except PermissionError as exc:
+            logger.warning("扫描目录 %s 时权限不足: %s", root, exc)
+    # 排序时缓存 stat，避免重复调用
+    found_with_stat: list[tuple[Path, float]] = []
+    for path in set(found):
+        try:
+            found_with_stat.append((path, path.stat().st_mtime))
+        except OSError:
+            continue
+    found_with_stat.sort(key=lambda pair: pair[1], reverse=True)
     items = []
-    for path in found:
+    for path, mtime in found_with_stat:
         item_id = video_id_for_path(path)
-        stat = path.stat()
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
         meta = draft_metadata(path, metadata_state.get(item_id))
         try:
             relative = str(path.relative_to(REPO_ROOT))
@@ -122,6 +154,11 @@ def scan_videos() -> list[dict]:
                 "upload": upload,
             }
         )
+
+    with _SCAN_CACHE_LOCK:
+        _SCAN_CACHE = items
+        _SCAN_CACHE_TIME = time.time()
+
     return items
 
 
@@ -144,10 +181,15 @@ def send_json(handler: BaseHTTPRequestHandler, data: dict, status: int = 200) ->
     handler.wfile.write(payload)
 
 
+MAX_REQUEST_BODY = 1024 * 1024  # 1MB — 防止超大请求耗尽内存
+
+
 def read_body(handler: BaseHTTPRequestHandler) -> dict:
     length = int(handler.headers.get("Content-Length", "0"))
     if not length:
         return {}
+    if length > MAX_REQUEST_BODY:
+        raise ValueError(f"Request body too large ({length} bytes, max {MAX_REQUEST_BODY})")
     return json.loads(handler.rfile.read(length).decode("utf-8"))
 
 
@@ -195,6 +237,9 @@ class Handler(BaseHTTPRequestHandler):
                         "description": body.get("description", "").strip(),
                     }
                     save_state(st)
+                # 元数据已更新，使扫描缓存失效以便下次请求获取新数据
+                with _SCAN_CACHE_LOCK:
+                    _SCAN_CACHE = None
                 send_json(self, {"ok": True})
                 return
             if self.path == "/api/regenerate":
@@ -211,7 +256,6 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Title is required")
                 if not description:
                     raise ValueError("Description is required")
-                import hashlib
                 job_id = hashlib.sha1(f"{item['id']}:{time.time()}".encode()).hexdigest()[:16]
                 JOBS[job_id] = {"status": "running", "log": [f"{now_text()} Created upload job"]}
                 thread = threading.Thread(

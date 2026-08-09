@@ -13,6 +13,9 @@ import state
 
 logger = logging.getLogger(__name__)
 
+# CAPTION_TRANSLATIONS 统一由 cosplay_metadata_analyzer 维护，避免重复
+CAPTION_TRANSLATIONS = cosplay_metadata_analyzer.CAPTION_TRANSLATIONS
+
 
 # ── 角色匹配规则 ──────────────────────────────────────────
 CHARACTER_RULES = [
@@ -73,16 +76,6 @@ CHARACTER_RULES = [
         "tags": ["#Changli", "#WutheringWaves", "#Cosplay", "#shorts"],
     },
 ]
-
-
-CAPTION_TRANSLATIONS = {
-    "一曲相思": "A Song of Longing",
-    "我终于找到所寻之人": "I finally found the one I've been searching for.",
-    "长沙夏天的快乐是大王山给的": "Summer fun at Dawangshan in Changsha.",
-    "长沙湘江水上乐园": "Changsha Xiangjiang Water Park.",
-    "泳装cos": "swimsuit cosplay",
-    "正常泳装穿搭": "swimsuit outfit",
-}
 
 
 def clean_filename_text(path: Path) -> str:

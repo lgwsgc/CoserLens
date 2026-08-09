@@ -168,8 +168,8 @@ def wait_for_studio_ready(page, job: dict, timeout=TIMEOUT_LONG) -> None:
                 if page.get_by_text(re.compile("(Upload videos|上传视频)")).count():
                     return
             page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("wait_for_studio_ready transient error (will retry): %s", exc)
         time.sleep(1)
     raise RuntimeError(f"YouTube Studio upload page was not ready. Last URL: {page.url}")
 

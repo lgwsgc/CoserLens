@@ -78,6 +78,11 @@ CAPTION_TRANSLATIONS = {
     "大王，不来一曲吗": "A royal dance-inspired moment.",
     "嘴巴再硬 亲起来也是软的": "",
     "今天喝了杯果汁": "",
+    # — 以下来自 metadata_helpers.py 的补充条目 —
+    "长沙夏天的快乐是大王山给的": "Summer fun at Dawangshan in Changsha.",
+    "长沙湘江水上乐园": "Changsha Xiangjiang Water Park.",
+    "泳装cos": "swimsuit cosplay",
+    "正常泳装穿搭": "swimsuit outfit",
 }
 
 MOMENT_TITLE_HOOKS = {

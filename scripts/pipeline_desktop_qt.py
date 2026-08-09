@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 import download_ui
+import logging_config
 import pipeline_ui
 import config
 import translation
@@ -700,173 +701,7 @@ class MainWindow(QMainWindow):
     def update_local_note(self, item):
         title = self.title_edit.text().strip()
         description = self.description_edit.toPlainText().strip()
-        self.local_note.setText(self.translate_upload_copy(title, description))
-
-    def translate_upload_copy(self, title, description):
-        lines = []
-        if title:
-            lines.append(f"\u4e2d\u6587\u6807\u9898\uff1a{self.translate_english_line(title)}")
-        if description:
-            translated = [self.translate_english_line(line) for line in description.splitlines()]
-            lines.extend(["", "\u4e2d\u6587\u8bf4\u660e\uff1a", *translated])
-        return "\n".join(lines) if lines else "\u4e2d\u6587\u53c2\u8003\uff1a-"
-
-    def translate_english_line(self, line):
-        text = line.strip()
-        if not text:
-            return ""
-        exact = {
-            "Real-life cosplay short filmed in a cinematic style.": "\u771f\u5b9e Cosplay \u77ed\u89c6\u9891\uff0c\u7535\u5f71\u611f\u62cd\u6444\u3002",
-            "Real-life swimsuit cosplay short filmed in a cinematic style.": "\u771f\u5b9e\u6cf3\u88c5 Cosplay \u77ed\u89c6\u9891\uff0c\u7535\u5f71\u611f\u62cd\u6444\u3002",
-            "Real-life swimsuit cosplay short filmed at a water park.": "\u771f\u5b9e\u6cf3\u88c5 Cosplay \u77ed\u89c6\u9891\uff0c\u5728\u6c34\u4e0a\u4e50\u56ed\u62cd\u6444\u3002",
-            "Subscribe for more real cosplay moments.": "\u8ba2\u9605\u83b7\u53d6\u66f4\u591a\u771f\u5b9e Cosplay \u77ac\u95f4\u3002",
-            "Style: Swimsuit cosplay": "\u98ce\u683c\uff1a\u6cf3\u88c5 Cosplay",
-            "Style: Swimsuit cosplay / summer water park": "\u98ce\u683c\uff1a\u6cf3\u88c5 Cosplay / \u590f\u65e5\u6c34\u4e0a\u4e50\u56ed",
-            "Location: Water park": "\u5730\u70b9\uff1a\u6c34\u4e0a\u4e50\u56ed",
-            "Location: Changsha Xiangjiang Water Park": "\u5730\u70b9\uff1a\u957f\u6c99\u6e58\u6c5f\u6c34\u4e0a\u4e50\u56ed",
-            "Real Cosplay Moment | Cosplay Short": "\u771f\u5b9e Cosplay \u77ac\u95f4 | Cosplay \u77ed\u89c6\u9891",
-            "Swimsuit Cosplay at Water Park | Cosplay Short": "\u6c34\u4e0a\u4e50\u56ed\u6cf3\u88c5 Cosplay | Cosplay \u77ed\u89c6\u9891",
-            "Swimsuit Cosplay Look | Cosplay Short": "\u6cf3\u88c5 Cosplay \u9020\u578b | Cosplay \u77ed\u89c6\u9891",
-            "Water Park Cosplay Moment | Cosplay Short": "\u6c34\u4e0a\u4e50\u56ed Cosplay \u77ac\u95f4 | Cosplay \u77ed\u89c6\u9891",
-        }
-        if text in exact:
-            return exact[text]
-        inspired_match = re.fullmatch(
-            r"A real-life cosplay short inspired by (.+), filmed in a cinematic short-video style\.",
-            text,
-        )
-        if inspired_match:
-            source = self.translate_source_name(inspired_match.group(1))
-            return f"\u771f\u5b9e Cosplay \u77ed\u89c6\u9891\uff0c\u7075\u611f\u6765\u81ea {source}\uff0c\u7535\u5f71\u611f\u77ed\u89c6\u9891\u98ce\u683c\u3002"
-        featuring_match = re.fullmatch(
-            r"A short cosplay moment featuring (.+) from (.+), filmed in a cinematic short-video style\.",
-            text,
-        )
-        if featuring_match:
-            character = self.translate_character_name(featuring_match.group(1))
-            source = self.translate_source_name(featuring_match.group(2))
-            return f"{character} Cosplay \u77ac\u95f4\uff0c\u89d2\u8272\u6765\u81ea {source}\uff0c\u7535\u5f71\u611f\u77ed\u89c6\u9891\u98ce\u683c\u3002"
-        transformation_match = re.fullmatch(
-            r"One touch of the mirror, and (.+) suddenly feels real\. A fantasy cosplay transformation inspired by (.+)\.",
-            text,
-        )
-        if transformation_match:
-            character = self.translate_character_name(transformation_match.group(1))
-            source = self.translate_source_name(transformation_match.group(2))
-            return f"\u8f7b\u89e6\u955c\u5b50\uff0c{character}\u5c31\u50cf\u771f\u7684\u8d70\u5230\u4e86\u73b0\u5b9e\u4e2d\u3002\u4e00\u6bb5\u7075\u611f\u6765\u81ea {source} \u7684\u5e7b\u60f3 Cosplay \u53d8\u88c5\u89c6\u9891\u3002"
-        throne_match = re.fullmatch(
-            r"A real-life (.+) cosplay from Throne of Seal, captured in a cinematic walk\.",
-            text,
-        )
-        if throne_match:
-            character = self.translate_character_name(throne_match.group(1))
-            return f"\u5979\u4e0d\u662f\u8d70\u8fdb\u4e86\u753b\u9762\uff0c\u5979\u662f\u4ece\u52a8\u753b\u91cc\u8d70\u51fa\u6765\u7684\u3002{character}\u6765\u81ea\u300a\u795e\u5370\u738b\u5ea7\u300b\uff0c\u73b0\u5728\u771f\u7684\u51fa\u73b0\u5728\u73b0\u5b9e\u4e2d\u3002\u4f60\u662f\u770b\u5230\u6807\u7b7e\u524d\u8ba4\u51fa\u5979\u7684\u5417\uff1f"
-        if text.startswith("Real-life ") and " cosplay short filmed in a cinematic style." in text:
-            name = text.removeprefix("Real-life ").removesuffix(" cosplay short filmed in a cinematic style.")
-            return f"\u771f\u5b9e {self.translate_character_name(name)} Cosplay \u77ed\u89c6\u9891\uff0c\u7535\u5f71\u611f\u62cd\u6444\u3002"
-        if text.startswith("Character: "):
-            return "\u89d2\u8272\uff1a" + self.translate_character_name(text.removeprefix("Character: "))
-        if text.startswith("Source: "):
-            return "\u51fa\u5904\uff1a" + self.translate_source_name(text.removeprefix("Source: "))
-        if text.startswith("Moment: "):
-            return "\u77ac\u95f4\uff1a" + text.removeprefix("Moment: ")
-        if text.startswith("#"):
-            return "\u6807\u7b7e\uff1a" + "\u3001".join(self.translate_hashtag(tag) for tag in text.split())
-        return self.translate_title_terms(text)
-
-    def translate_character_name(self, text):
-        return translation.character_en_to_cn(text)
-
-    def translate_source_name(self, text):
-        # "Donghua" 是泛称，不在 catalog 里，单独处理
-        if text == "Donghua":
-            return "国漫"
-        return translation.source_en_to_cn(text)
-
-    def translate_hashtag(self, tag):
-        clean = tag.lstrip("#")
-        return {
-            "Cosplay": "Cosplay",
-            "Cosplayer": "Coser",
-            "AnimeCosplay": "\u52a8\u6f2b Cosplay",
-            "shorts": "Shorts",
-            "SwimsuitCosplay": "\u6cf3\u88c5 Cosplay",
-            "WaterPark": "\u6c34\u4e0a\u4e50\u56ed",
-            "HonorOfKings": "\u738b\u8005\u8363\u8000",
-            "NarakaBladepoint": "\u6c38\u52ab\u65e0\u95f4",
-            "WutheringWaves": "\u9e23\u6f6e",
-            "GameCosplay": "\u6e38\u620f Cosplay",
-            "Donghua": "\u56fd\u6f2b",
-            "XiaoXuner": "\u8427\u85b0\u513f",
-            "AnimeCosplay": "\u52a8\u6f2b Cosplay",
-            "ChineseCostume": "\u4e2d\u56fd\u98ce\u9020\u578b",
-            "CostumeShorts": "\u670d\u9970\u77ed\u89c6\u9891",
-            "HonkaiStarRail": "\u5d29\u574f\u661f\u7a79\u94c1\u9053",
-            "GenshinImpact": "\u539f\u795e",
-            "LeagueOfLegends": "\u82f1\u96c4\u8054\u76df",
-            "Ahri": "\u963f\u72f8",
-            "ZenlessZoneZero": "\u7edd\u533a\u96f6",
-            "BlueArchive": "\u851a\u84dd\u6863\u6848",
-            "AzurLane": "\u78a7\u84dd\u822a\u7ebf",
-            "IcePrincess": "\u51b0\u516c\u4e3b",
-            "YeLuoli": "\u53f6\u7f57\u4e3d",
-            "CosplayTransition": "Cosplay \u53d8\u88c5\u8f6c\u573a",
-            "ShengCaier": "\u5723\u91c7\u513f",
-            "ThroneOfSeal": "\u795e\u5370\u738b\u5ea7",
-        }.get(clean, clean)
-
-    def translate_title_terms(self, text):
-        exact = {
-            "Wait... That's Not CGI?": "\u7b49\u7b49\uff0c\u8fd9\u4e0d\u662f CGI\uff1f",
-            "The Mirror Just Glitched": "\u955c\u5b50\u521a\u521a\u5361\u51fa\u4e86\u4e00\u4e2a\u52a8\u753b\u4e16\u754c",
-            "She Wasn't There a Second Ago": "\u4e00\u79d2\u524d\u5979\u8fd8\u4e0d\u5728\u90a3\u91cc",
-            "This Cosplay Is Breaking Reality": "\u8fd9\u4e2a Cosplay \u5feb\u628a\u73b0\u5b9e\u641e\u574f\u4e86",
-            "The Anime Girl Is Looking Back": "\u52a8\u753b\u91cc\u7684\u5973\u5b69\u6b63\u5728\u56de\u5934\u770b\u6211",
-            "She Just Stole the Entire Scene": "\u5979\u4e00\u51fa\u573a\u5c31\u62a2\u8d70\u4e86\u5168\u573a\u7126\u70b9",
-            "That Entrance Was Everything": "\u8fd9\u4e2a\u51fa\u573a\u592a\u7edd\u4e86",
-            "The Main Character Just Arrived": "\u4e3b\u89d2\u767b\u573a\u4e86",
-            "No One Was Ready for That Entrance": "\u6ca1\u6709\u4eba\u80fd\u51c6\u5907\u597d\u8fd9\u4e2a\u51fa\u573a",
-            "Don't Blink": "\u522b\u7728\u773c",
-        }
-        if text in exact:
-            return exact[text]
-        replacements = {
-            "Battle Through the Heavens": "\u6597\u7834\u82cd\u7a79",
-            "Honor of Kings": "\u738b\u8005\u8363\u8000",
-            "Naraka Bladepoint": "\u6c38\u52ab\u65e0\u95f4",
-            "Naraka: Bladepoint": "\u6c38\u52ab\u65e0\u95f4",
-            "Wuthering Waves": "\u9e23\u6f6e",
-            "Honkai Star Rail": "\u5d29\u574f\u661f\u7a79\u94c1\u9053",
-            "Genshin Impact": "\u539f\u795e",
-            "League of Legends": "\u82f1\u96c4\u8054\u76df",
-            "Cosplay Brought to Life": "Cosplay \u771f\u4eba\u8fd8\u539f",
-            "Cosplay Brings the Character to Life": "Cosplay \u628a\u89d2\u8272\u5e26\u5230\u73b0\u5b9e",
-            "Just Stepped Out of the Screen": "\u50cf\u4ece\u5c4f\u5e55\u91cc\u8d70\u51fa\u6765",
-            "This ": "\u8fd9\u4e2a ",
-            " Is So Accurate": " \u8fd8\u539f\u5ea6\u5f88\u9ad8",
-            "Real Cosplay Moment": "\u771f\u5b9e Cosplay \u77ac\u95f4",
-            "Cosplay Short": "Cosplay \u77ed\u89c6\u9891",
-            "Honor of Kings Short": "\u738b\u8005\u8363\u8000\u77ed\u89c6\u9891",
-            "Naraka Bladepoint Short": "\u6c38\u52ab\u65e0\u95f4\u77ed\u89c6\u9891",
-            "Game Cosplay Short": "\u6e38\u620f Cosplay \u77ed\u89c6\u9891",
-            "Donghua Short": "\u56fd\u6f2b\u77ed\u89c6\u9891",
-            "Looks Unreal in Real Life": "\u771f\u4eba\u8fd8\u539f\u611f\u5f88\u5f3a",
-            "Looks Real": "\u8fd8\u539f\u611f\u5f88\u5f3a",
-            "Cosplay Walk": "Cosplay \u8d70\u79c0",
-            "Cosplay Looks Unreal": "Cosplay \u8fd8\u539f\u5ea6\u5f88\u9ad8",
-            "Cosplay": "Cosplay",
-            "Short": "\u77ed\u89c6\u9891",
-        }
-        translated = text
-        for source, target in replacements.items():
-            translated = translated.replace(source, target)
-        # 角色名替换：从 catalog 动态获取，不再硬编码
-        for char in translation.all_characters():
-            en = char.get("character_en", "")
-            cn = char.get("character_cn", "")
-            if en and cn:
-                translated = translated.replace(en, cn)
-        return translated
+        self.local_note.setText(translation.translate_upload_copy(title, description))
 
     def refresh_local_note(self):
         item = self.current_item()
@@ -1247,7 +1082,7 @@ class MainWindow(QMainWindow):
         try:
             import httpx
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-            with httpx.Client(headers=headers, follow_redirects=True, timeout=20, verify=False) as client:
+            with httpx.Client(headers=headers, follow_redirects=True, timeout=20, verify=config.VERIFY_SSL) as client:
                 final_url = str(client.get(text).url)
             sec_uid = re.search(r"(?:sec_uid=|/share/user/)([^&/?]+)", final_url)
             if sec_uid:
@@ -1255,19 +1090,6 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self.log_queue.put(f"Could not normalize Douyin source, using original link: {exc}")
         return text
-
-    def batch_new_files(self, output_root, before_dirs, started_at):
-        if not output_root.exists():
-            return []
-        files = []
-        for video in output_root.rglob("*.mp4"):
-            if not video.is_file():
-                continue
-            folder = video.parent
-            modified = video.stat().st_mtime
-            if folder not in before_dirs or modified >= started_at:
-                files.append(video)
-        return sorted(files, key=lambda path: path.stat().st_mtime, reverse=True)
 
     def update_download_button(self):
         if self.download_mode.currentIndex() == 0:
@@ -1403,6 +1225,7 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    logging_config.setup_logging()
     write_trace("main entered")
     set_windows_app_id()
     lock = acquire_single_instance()
